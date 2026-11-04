@@ -1,0 +1,11 @@
+{
+  "name": "@buytrail/db",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" , "generate": "prisma generate", "migrate:deploy": "prisma migrate deploy", "migrate:dev": "prisma migrate dev" },
+  "dependencies": { "@prisma/client": "7.10.1", "@prisma/adapter-pg": "7.10.1", "pg": "8.23.1", "@buytrail/config": "workspace:*" },
+  "devDependencies": { "prisma": "7.10.1", "@types/pg": "8.23.1" }
+}

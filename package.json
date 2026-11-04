@@ -1,0 +1,52 @@
+{
+  "name": "buytrail",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,worker -c cyan,magenta \"pnpm --filter @buytrail/web dev\" \"pnpm --filter @buytrail/worker dev\"",
+    "dev:web": "pnpm --filter @buytrail/web dev",
+    "dev:worker": "pnpm --filter @buytrail/worker dev",
+    "build": "pnpm db:generate && pnpm --filter @buytrail/web build",
+    "start:web": "pnpm --filter @buytrail/web start",
+    "worker": "pnpm --filter @buytrail/worker start",
+    "lint": "pnpm --filter @buytrail/web lint",
+    "typecheck": "pnpm -r --parallel typecheck && tsc -p scripts/tsconfig.json --noEmit",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "pnpm --filter @buytrail/web test:e2e",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "db:generate": "pnpm --filter @buytrail/db generate",
+    "db:migrate": "pnpm --filter @buytrail/db migrate:deploy",
+    "db:migrate:dev": "pnpm --filter @buytrail/db migrate:dev",
+    "db:reset:local": "tsx scripts/reset-local.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "doctor": "tsx scripts/doctor.ts",
+    "source:probe": "tsx scripts/source-probe.ts",
+    "admin:grant": "tsx scripts/admin-grant.ts",
+    "bench": "tsx scripts/bench.ts",
+    "match:benchmark": "tsx scripts/match-benchmark.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "concurrently": "9.2.1",
+    "dotenv": "17.2.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12",
+    "@types/nodemailer": "7.0.12"
+  },
+  "dependencies": {
+    "@buytrail/config": "workspace:*",
+    "@buytrail/db": "workspace:*",
+    "@buytrail/domain": "workspace:*",
+    "@buytrail/providers": "workspace:*",
+    "@buytrail/services": "workspace:*",
+    "ioredis": "5.11.1",
+    "nodemailer": "7.0.13"
+  }
+}

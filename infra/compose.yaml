@@ -1,0 +1,40 @@
+# Local development dependencies for BuyTrail. Not for production use.
+name: buytrail
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: buytrail
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_DB: buytrail
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buytrail"]
+      interval: 3s
+      retries: 20
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+  # S3-compatible private object storage. MinIO images were not pullable from the
+  # development network (see docs/decisions/0002-local-object-storage.md).
+  objects:
+    image: chrislusf/seaweedfs:3.80
+    command: ["server", "-s3", "-s3.port=9000", "-s3.config=/etc/seaweedfs/s3.json", "-dir=/data", "-master.volumeSizeLimitMB=256"]
+    ports: ["127.0.0.1:9000:9000"]
+    volumes:
+      - objdata:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+volumes:
+  pgdata:
+  objdata:

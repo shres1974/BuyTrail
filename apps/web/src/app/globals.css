@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* BuyTrail tokens: warm off-white, dark navy text, restrained teal accent (Section 5).
+   Contrast: navy #14213d on paper #faf7f2 ≈ 15:1; teal-700 #0f6b66 on paper ≈ 6:1. */
+@theme {
+  --color-paper: #faf7f2;
+  --color-card: #ffffff;
+  --color-line: #e6e0d6;
+  --color-ink: #14213d;
+  --color-muted: #4b5568;
+  --color-teal: #0f6b66;
+  --color-teal-dark: #0b4f4b;
+  --color-teal-soft: #e3f1ef;
+  --color-warn: #8a4b00;
+  --color-warn-soft: #fff3e0;
+  --color-bad: #9b1c1c;
+  --color-bad-soft: #fdecec;
+  --color-sample: #5b3f8c;
+  --color-sample-soft: #f1ecf9;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus for every interactive element (WCAG 2.4.7 / 2.4.11). */
+:focus-visible {
+  outline: 3px solid var(--color-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+packages/db/src/generated/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/next-env.d.ts
+.tmp/
+bench-results/raw/

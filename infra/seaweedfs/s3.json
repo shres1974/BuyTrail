@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "buytrail_local",
+      "credentials": [{ "accessKey": "local_only", "secretKey": "local_only_object_secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

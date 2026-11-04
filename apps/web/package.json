@@ -1,0 +1,37 @@
+{
+  "name": "@buytrail/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@buytrail/config": "workspace:*",
+    "@buytrail/db": "workspace:*",
+    "@buytrail/domain": "workspace:*",
+    "@buytrail/providers": "workspace:*",
+    "@buytrail/services": "workspace:*",
+    "better-auth": "1.7.16",
+    "next": "16.4.5",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7",
+    "dotenv": "17.2.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.5",
+    "postcss": "8.5.32",
+    "tailwindcss": "4.3.4"
+  }
+}

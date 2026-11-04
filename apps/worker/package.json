@@ -1,0 +1,25 @@
+{
+  "name": "@buytrail/worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts"
+  },
+  "dependencies": {
+    "@buytrail/config": "workspace:*",
+    "@buytrail/domain": "workspace:*",
+    "@buytrail/db": "workspace:*",
+    "@buytrail/providers": "workspace:*",
+    "@buytrail/services": "workspace:*",
+    "bullmq": "5.81.5",
+    "ioredis": "5.11.1"
+  },
+  "devDependencies": {
+    "fflate": "0.8.3"
+  }
+}

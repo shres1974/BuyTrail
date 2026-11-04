@@ -1,0 +1,716 @@
+// BuyTrail relational model. Money is BigInt minor units + currency. Nullability expresses
+// uncertainty (e.g. shipping amount null + shipping_status 'unknown'); zero is never a default
+// for unknown values. Additional CHECK constraints and partial indexes live in the SQL
+// migration (see migrations/20261104000100_constraints).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Auth (Better Auth managed shape) ─────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  // BuyTrail fields
+  timezone      String    @default("America/Toronto")
+  role          String    @default("user") // 'user' | 'admin'; granted only by admin-grant script/ADMIN_EMAILS
+  emailAlerts   Boolean   @default(true)
+  emailReminders Boolean  @default(true)
+  categoryEmailOptOut String[] @default([])
+  deletionState String    @default("active") // active | deleting | deleted
+  deletionRequestedAt DateTime?
+  settingsVersion Int     @default(1)
+
+  sessions      Session[]
+  accounts      Account[]
+  watches       Watch[]
+  notifications NotificationEvent[]
+  purchases     Purchase[]
+  receipts      Receipt[]
+  quoteContexts QuoteContext[]
+  idempotency   IdempotencyRecord[]
+  exports       AccountExport[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────── Sources and catalog (public) ─────────────────────────
+
+model Source {
+  id                    String   @id
+  name                  String
+  mode                  String   // demo | sandbox | live
+  status                String   @default("enabled") // enabled | disabled | degraded | circuit_open
+  approvalStatus        String   // approved | pending | unavailable | demo
+  permissionsRevision   Int      @default(1)
+  capabilities          Json     // SourceCapabilities
+  allowedHosts          String[]
+  freshnessSeconds      Int
+  historyRetentionDays  Int?     // null = history not allowed
+  dailyRequestBudget    Int
+  concurrency           Int      @default(2)
+  nextEligibleRequestAt DateTime?
+  consecutiveFailures   Int      @default(0)
+  lastSuccessAt         DateTime?
+  lastFailureAt         DateTime?
+  lastFailureCode       String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  listings     SourceListing[]
+  refreshRuns  RefreshRun[]
+  budgets      SourceBudgetDay[]
+
+  @@map("source")
+}
+
+model SourceBudgetDay {
+  sourceId  String
+  day       String   // YYYY-MM-DD UTC
+  used      Int      @default(0)
+  source    Source   @relation(fields: [sourceId], references: [id])
+
+  @@id([sourceId, day])
+  @@map("source_budget_day")
+}
+
+model Merchant {
+  id         String  @id
+  name       String
+  platform   String? // marketplace name when the seller sells via a platform
+  displayUrl String?
+  isDemo     Boolean @default(false)
+
+  listings SourceListing[]
+
+  @@map("merchant")
+}
+
+model Product {
+  id         String   @id
+  title      String
+  brand      String
+  category   String   // headphones | monitors | small_appliances
+  family     String   // e.g. "Quiet 2"
+  description String?
+  imageUrl   String?
+  isDemo     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  // Generated tsvector column created in the constraints migration (read-only).
+  searchVector Unsupported("tsvector")?
+
+  variants ProductVariant[]
+
+  @@index([category])
+  @@map("product")
+}
+
+model ProductVariant {
+  id          String   @id
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  modelCode   String
+  modelCodeNormalized String
+  label       String   // "Black, standard bundle"
+  attributes  Json     // critical + display attributes (string values)
+  market      String   @default("CA")
+  isDemo      Boolean  @default(false)
+  searchSummary Json?  // denormalized for search: best total, counts, computedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  identifiers ProductIdentifier[]
+  listings    SourceListing[]
+  watches     Watch[]
+  purchaseItems PurchaseItem[]
+
+  @@index([productId])
+  @@index([modelCodeNormalized])
+  @@map("product_variant")
+}
+
+model ProductIdentifier {
+  id         String @id @default(cuid())
+  variantId  String
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+  kind       String // gtin | mpn
+  original   String
+  normalized String
+  provenance String // source id or "admin"
+
+  @@unique([kind, normalized, variantId])
+  @@index([kind, normalized])
+  @@map("product_identifier")
+}
+
+model SourceListing {
+  id                 String   @id @default(cuid())
+  sourceId           String
+  source             Source   @relation(fields: [sourceId], references: [id])
+  market             String
+  externalListingId  String
+  externalVariantKey String
+  sellerKey          String
+  merchantId         String?
+  merchant           Merchant? @relation(fields: [merchantId], references: [id])
+  title              String
+  brand              String?
+  model              String?
+  identifiers        Json     // [{kind, value}] as received
+  attributes         Json
+  outboundUrl        String
+  imageUrl           String?
+  variantId          String?  // current association (verified only)
+  variant            ProductVariant? @relation(fields: [variantId], references: [id])
+  matchStatus        String   @default("unmatched") // unmatched | candidate | verified | rejected | quarantined
+  matchVersion       Int      @default(0)
+  refreshGeneration  BigInt   @default(0) // last claimed generation
+  lastInterestAt     DateTime?
+  removedAt          DateTime?
+  isDemo             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  quotes       OfferQuote[]
+  observations PriceObservation[]
+  matchDecisions MatchDecision[]
+  refreshRuns  RefreshRun[]
+
+  @@unique([sourceId, market, externalListingId, externalVariantKey, sellerKey])
+  @@index([variantId])
+  @@index([matchStatus])
+  @@map("source_listing")
+}
+
+model MatchDecision {
+  id               String   @id @default(cuid())
+  listingId        String
+  listing          SourceListing @relation(fields: [listingId], references: [id])
+  status           String   // candidate | verified | rejected | quarantined | unmatched
+  candidateVariantIds String[]
+  chosenVariantId  String?
+  previousVariantId String?
+  evidence         Json
+  reason           String?
+  ruleVersion      String
+  decidedBy        String   // "rule:match-v1" | "admin:<userId>"
+  reviewState      String   @default("open") // open | resolved
+  createdAt        DateTime @default(now())
+
+  @@index([listingId, createdAt])
+  @@index([reviewState, status])
+  @@map("match_decision")
+}
+
+model QuoteContext {
+  id          String  @id
+  market      String
+  quantity    Int     @default(1)
+  destinationScope String // "national" | "postal_prefix"
+  destinationValue String? // private; never logged or used in public cache keys
+  ownerUserId String? // null = public context
+  owner       User?   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  description String
+  createdAt   DateTime @default(now())
+
+  quotes  OfferQuote[]
+  watches Watch[]
+
+  @@index([ownerUserId])
+  @@map("quote_context")
+}
+
+model OfferQuote {
+  id                String   @id @default(cuid())
+  listingId         String
+  listing           SourceListing @relation(fields: [listingId], references: [id])
+  contextId         String
+  context           QuoteContext  @relation(fields: [contextId], references: [id])
+  condition         String   // new | refurbished | used | unknown
+  stock             String   // in_stock | out_of_stock | unknown
+  currency          String
+  itemPriceMinor    BigInt?
+  shippingStatus    String   // known | unknown | threshold
+  shippingMinor     BigInt?
+  shippingThresholdMinor BigInt?
+  shippingUnknownReason String?
+  feesMinor         BigInt?
+  feeStatus         String   // complete | unknown
+  restrictions      Json     @default("[]")
+  anomalyStatus     String   @default("none") // none | pending_verification | confirmed | rejected
+  anomalyReason     String?
+  sourceObservedAt  DateTime?
+  fetchedAt         DateTime
+  lastSuccessfulCheckAt DateTime
+  lastCheckFailedAt DateTime?
+  lastCheckFailure  String?
+  expiresAt         DateTime
+  generation        BigInt
+  observationId     String?
+  invalidatedAt     DateTime? // set by match correction
+  expiryNotedAt     DateTime? // expiry sweep bookkeeping; cleared by a new observation
+  updatedAt         DateTime @updatedAt
+
+  @@unique([listingId, contextId])
+  @@index([contextId, expiresAt])
+  @@index([expiresAt], map: "offer_expiry")
+  @@map("offer_quote")
+}
+
+model PriceObservation {
+  id               String   @id @default(cuid())
+  listingId        String
+  listing          SourceListing @relation(fields: [listingId], references: [id])
+  contextId        String
+  sourceId         String
+  sourceMode       String
+  runId            String
+  recordKey        String
+  generation       BigInt
+  condition        String
+  stock            String
+  currency         String
+  itemPriceMinor   BigInt?
+  shippingStatus   String
+  shippingMinor    BigInt?
+  shippingThresholdMinor BigInt?
+  feesMinor        BigInt?
+  feeStatus        String
+  knownTotalMinor  BigInt?
+  sourceObservedAt DateTime?
+  fetchedAt        DateTime
+  acceptedAt       DateTime @default(now())
+  normalizationVersion String
+  matchVersion     Int
+  variantIdAtObservation String?
+  qualityFlags     String[] @default([])
+  supersededByNewer Boolean @default(false) // stored as history but not applied to current state
+  retainUntil      DateTime
+
+  @@unique([sourceId, runId, recordKey])
+  @@index([listingId, contextId, fetchedAt])
+  @@index([retainUntil])
+  @@map("price_observation")
+}
+
+model RefreshRun {
+  id          String   @id @default(cuid())
+  sourceId    String
+  source      Source   @relation(fields: [sourceId], references: [id])
+  listingId   String?
+  listing     SourceListing? @relation(fields: [listingId], references: [id])
+  contextId   String?
+  kind        String   // lookup | import | verify_anomaly
+  generation  BigInt
+  status      String   @default("claimed") // claimed | succeeded | failed | superseded | budget_exhausted
+  attempts    Int      @default(0)
+  leaseExpiresAt DateTime?
+  claimedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  errorCode   String?
+  errorDetail String?
+
+  @@index([sourceId, status])
+  @@index([listingId, contextId, generation])
+  @@map("refresh_run")
+}
+
+// Next due refresh per (listing, context). One schedule serves every watch on it.
+model RefreshSchedule {
+  listingId String
+  contextId String
+  dueAt     DateTime
+  priority  Int      @default(0)
+  intervalSeconds Int
+
+  @@id([listingId, contextId])
+  @@index([dueAt])
+  @@map("refresh_schedule")
+}
+
+// ───────────────────────── Watches and notifications (private) ─────────────────────────
+
+model Watch {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variantId              String
+  variant                ProductVariant @relation(fields: [variantId], references: [id])
+  condition              String
+  contextId              String
+  context                QuoteContext @relation(fields: [contextId], references: [id])
+  targetMinor            BigInt
+  currency               String   @default("CAD")
+  channels               String[]
+  notifyIfAlreadyQualifying Boolean @default(false)
+  ruleVersion            Int      @default(1)
+  lifecycle              String   @default("active") // active | paused | deleted
+  qualification          String   @default("unknown") // armed | satisfied | unknown
+  lastKnownQualification String   @default("armed")
+  episode                Int      @default(0)
+  rearmStreak            Int      @default(0)
+  lastEvaluatedGeneration BigInt  @default(0)
+  lastBestTotalMinor     BigInt?
+  lastBestOfferId        String?
+  lastEvaluatedAt        DateTime?
+  lastEmailAttemptAt     DateTime?
+  lastEmailAcceptedAt    DateTime?
+  version                Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  evaluations WatchEvaluation[]
+
+  @@index([userId, lifecycle])
+  @@index([variantId, contextId, lifecycle])
+  @@map("watch")
+}
+
+model WatchEvaluation {
+  id          String   @id @default(cuid())
+  watchId     String
+  watch       Watch    @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  ruleVersion Int
+  generation  BigInt
+  decision    String
+  bestTotalMinor BigInt?
+  bestOfferId String?
+  createdAt   DateTime @default(now())
+
+  @@index([watchId, createdAt])
+  @@map("watch_evaluation")
+}
+
+model NotificationEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // price_target_met | return_reminder | system_notice
+  logicalKey String   @unique
+  payload    Json
+  watchId    String?
+  ruleVersion Int?
+  readAt     DateTime?
+  isDemo     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, createdAt])
+  @@map("notification_event")
+}
+
+model NotificationDelivery {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       NotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  channel     String   // email (in-app is the event itself)
+  state       String   @default("pending") // pending | claimed | accepted | retryable_failure | permanent_failure | unknown_outcome | suppressed | cancelled
+  notBefore   DateTime
+  attempts    Int      @default(0)
+  leaseExpiresAt DateTime?
+  idempotencyKey String @unique
+  providerMessageId String?
+  sendStartedAt DateTime? // committed before the external call; see G18
+  lastError   String?
+  suppressedReason String?
+  claimedAt   DateTime?
+  acceptedAt  DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([eventId, channel])
+  @@index([state, notBefore])
+  @@map("notification_delivery")
+}
+
+// ───────────────────────── Purchases, receipts, reminders (private) ─────────────────────────
+
+model Purchase {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantName String
+  merchantId   String?
+  purchasedOn  DateTime @db.Date // local calendar date
+  paidTotalMinor BigInt?
+  currency     String?
+  notes        String?
+  status       String   @default("active") // active | cancelled
+  isDemo       Boolean  @default(false)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items    PurchaseItem[]
+  receipts Receipt[]
+
+  @@index([userId, purchasedOn(sort: Desc), id])
+  @@map("purchase")
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+  description String   // immutable snapshot
+  quantity    Int
+  unitPriceMinor BigInt?
+  status      String   @default("kept") // kept | returned
+  createdAt   DateTime @default(now())
+
+  deadline ReturnDeadline?
+
+  @@index([purchaseId])
+  @@map("purchase_item")
+}
+
+model ReturnDeadline {
+  id            String   @id @default(cuid())
+  purchaseItemId String  @unique
+  purchaseItem  PurchaseItem @relation(fields: [purchaseItemId], references: [id], onDelete: Cascade)
+  userId        String
+  date          String   // YYYY-MM-DD local calendar date
+  cutoffTime    String?  // HH:mm local
+  timezone      String
+  source        String   // user_entered | user_confirmed_extraction | verified_policy
+  confirmedAt   DateTime
+  notes         String?
+  generation    Int      @default(1)
+  removedAt     DateTime?
+  updatedAt     DateTime @updatedAt
+
+  schedules ReminderSchedule[]
+
+  @@index([userId])
+  @@map("return_deadline")
+}
+
+model ReminderSchedule {
+  id          String   @id @default(cuid())
+  deadlineId  String
+  deadline    ReturnDeadline @relation(fields: [deadlineId], references: [id], onDelete: Cascade)
+  userId      String
+  generation  Int
+  offsetDays  Int
+  dueAt       DateTime
+  localLabel  String
+  status      String   @default("scheduled") // scheduled | claimed | sent | cancelled | skipped_past
+  leaseExpiresAt DateTime?
+  attempts    Int      @default(0)
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([deadlineId, generation, offsetDays])
+  @@index([status, dueAt])
+  @@map("reminder_schedule")
+}
+
+model Receipt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  objectKey   String   @unique // quarantine/<userId>/<random>
+  readyKey    String?  @unique
+  previewKey  String?
+  declaredType String
+  declaredSize Int
+  detectedType String?
+  actualSize  Int?
+  checksum    String?
+  state       String   @default("pending") // pending | processing | ready | rejected | failed | deleting | deleted
+  rejectReason String?
+  isSynthetic Boolean  @default(false)
+  uploadExpiresAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, purchaseId])
+  @@map("receipt")
+}
+
+model AccountExport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state     String   @default("pending") // pending | ready | failed | expired
+  objectKey String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("account_export")
+}
+
+// Durable deletion obligations that survive user-row removal and Redis loss.
+model DeletionTask {
+  id         String   @id @default(cuid())
+  kind       String   // object | account
+  target     String   // object key or user id
+  state      String   @default("pending") // pending | done
+  attempts   Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  lastError  String?
+  createdAt  DateTime @default(now())
+
+  @@unique([kind, target])
+  @@index([state, nextAttemptAt])
+  @@map("deletion_task")
+}
+
+// Tombstones let a restored backup be reconciled against completed deletions.
+model DeletionTombstone {
+  subjectHash String   @id // sha256 of user id
+  deletedAt   DateTime @default(now())
+
+  @@map("deletion_tombstone")
+}
+
+// ───────────────────────── Infrastructure ─────────────────────────
+
+model OutboxEvent {
+  id            String   @id @default(cuid())
+  type          String
+  entityKey     String
+  payload       Json
+  payloadVersion Int     @default(1)
+  availableAt   DateTime @default(now())
+  dispatchedAt  DateTime?
+  processingStartedAt DateTime?
+  leaseExpiresAt DateTime?
+  attempts      Int      @default(0)
+  completedAt   DateTime?
+  lastError     String?
+  createdAt     DateTime @default(now())
+
+  @@index([completedAt, availableAt])
+  @@map("outbox_event")
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operation   String
+  key         String
+  requestHash String
+  responseRef String?
+  responseStatus Int?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, operation, key])
+  @@index([expiresAt])
+  @@map("idempotency_record")
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  resource  String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("audit_event")
+}
+
+model WorkerHeartbeat {
+  workerId  String   @id
+  startedAt DateTime
+  lastBeatAt DateTime
+  info      Json     @default("{}")
+
+  @@map("worker_heartbeat")
+}
+
+model VariantEvalGeneration {
+  variantId  String
+  contextId  String
+  generation BigInt
+  updatedAt  DateTime @default(now())
+
+  @@id([variantId, contextId])
+  @@map("variant_eval_generation")
+}
+
+model DemoPriceOverride {
+  externalListingId String   @id
+  itemPriceMinor    BigInt
+  setAt             DateTime @default(now())
+
+  @@map("demo_price_override")
+}
+
+model ProductRequest {
+  id        String   @id @default(cuid())
+  query     String
+  category  String?
+  createdAt DateTime @default(now())
+
+  @@map("product_request")
+}

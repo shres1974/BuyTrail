@@ -1,0 +1,11 @@
+{
+  "name": "@buytrail/domain",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json"  },
+  "dependencies": { "luxon": "3.7.2" },
+  "devDependencies": { "@types/luxon": "3.7.6", "fast-check": "4.10.2" }
+}
