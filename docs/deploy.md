@@ -120,6 +120,44 @@ docker compose -f infra/compose.prod.yaml --env-file .env.production up -d --bui
 
 Migrations and the rerunnable demo seed run automatically on every start.
 
+## Automatic deploys (CD), optional
+
+`.github/workflows/deploy.yml` deploys every push to `main` once the full CI suite passes. It does nothing until you turn it on. It needs the server from steps 1–7 already running.
+
+1. **Create a deploy key** on your computer. It's used only for deploys and has no passphrase, so GitHub can use it:
+   ```bash
+   ssh-keygen -t ed25519 -N "" -C "buytrail-deploy" -f ~/.ssh/buytrail_deploy
+   ```
+2. **Allow it on the server.** Paste the *public* half into `authorized_keys`:
+   ```bash
+   cat ~/.ssh/buytrail_deploy.pub | ssh -i ~/.ssh/id_ed25519_personal root@SERVER_IP 'cat >> ~/.ssh/authorized_keys'
+   ```
+3. **Record the server's identity** so GitHub refuses to connect to an impostor:
+   ```bash
+   ssh-keyscan -t ed25519 SERVER_IP
+   ```
+   Copy the whole output line.
+4. In GitHub, go to the repo → **Settings → Environments → New environment** and name it `production`. Optionally tick *Required reviewers* to approve each deploy by hand. Then add these **environment secrets**:
+
+   | Secret | Value |
+   | --- | --- |
+   | `DEPLOY_HOST` | your server IP |
+   | `DEPLOY_USER` | `root` (or the user that owns `/opt/buytrail`) |
+   | `DEPLOY_SSH_KEY` | the full contents of `~/.ssh/buytrail_deploy` (the *private* file, including the BEGIN/END lines) |
+   | `DEPLOY_KNOWN_HOSTS` | the line from step 3 |
+5. Go to **Settings → Secrets and variables → Actions → Variables** and add:
+   - `DEPLOY_URL` = `https://your-domain`
+   - `DEPLOY_ENABLED` = `true`
+6. **Protect `main`.** In **Settings → Rules → New branch ruleset**, target `main` and require these status checks: "Typecheck, lint, unit tests", "Integration tests", "End-to-end (Playwright)" and "Production image builds". Failing code then can't be merged.
+
+From then on, each push to `main` runs CI. If it passes, the workflow connects to the server, checks out that exact commit, rebuilds, restarts, and waits until `/api/health` reports the worker alive. Watch progress in the **Actions** tab.
+
+Your `.env.production` stays on the server and is never stored in GitHub.
+
+To stop automatic deploys, set `DEPLOY_ENABLED` to `false`.
+
+To roll back, revert the bad commit and push. Or go to **Actions → Deploy → Run workflow** on a known-good commit.
+
 ## Backups
 
 A `backup` container writes a database dump to `/opt/buytrail/infra/backups/` daily and keeps the 7 most recent. Those copies are **on the same server**, so also copy them elsewhere now and then:

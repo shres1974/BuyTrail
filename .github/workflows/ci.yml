@@ -1,0 +1,114 @@
+# CI: static checks, unit, integration (real Postgres/Redis/S3/Mailpit), E2E, Docker image build.
+# No secrets are used; everything runs against throwaway local services and demo data.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Harmless local values matching .env.example; services below are ephemeral.
+  APP_MODE: demo
+  APP_BASE_URL: http://localhost:3000
+  DATABASE_URL: postgresql://buytrail:local_only@localhost:5432/buytrail
+  TEST_DATABASE_URL: postgresql://buytrail:local_only@localhost:5432/buytrail_test
+  REDIS_URL: redis://localhost:6379
+  AUTH_SECRET: ci_only_auth_secret_not_used_anywhere_else
+  EMAIL_MODE: local
+  SMTP_HOST: localhost
+  SMTP_PORT: "1025"
+  MAILPIT_API_URL: http://localhost:8025
+  OBJECT_STORAGE_ENDPOINT: http://localhost:9000
+  OBJECT_STORAGE_BUCKET: buytrail-private
+  OBJECT_STORAGE_ACCESS_KEY: local_only
+  OBJECT_STORAGE_SECRET_KEY: local_only_object_secret
+  ADMIN_EMAILS: admin@buytrail.local
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  checks:
+    name: Typecheck, lint, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:unit
+      - name: Matching benchmark (fails on any false automatic merge)
+        run: pnpm match:benchmark
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup
+      - name: Start dependencies
+        run: docker compose -f infra/compose.yaml up -d --wait postgres redis mailpit objects
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml logs --tail=200
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup
+      - name: Start dependencies
+        run: docker compose -f infra/compose.yaml up -d --wait postgres redis mailpit objects
+      - run: pnpm db:migrate
+      - run: pnpm seed:demo
+      - run: pnpm build
+      - name: Install Playwright Chromium
+        run: pnpm --filter @buytrail/web exec playwright install --with-deps chromium
+      - name: Start web and worker
+        run: |
+          nohup pnpm start:web > web.log 2>&1 &
+          nohup pnpm worker > worker.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:3000/api/health | grep -q '"alive":true' && exit 0
+            sleep 2
+          done
+          echo "web/worker did not become healthy"; tail -50 web.log worker.log; exit 1
+      - run: pnpm test:e2e
+      - name: Upload Playwright traces and server logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: e2e-artifacts
+          path: |
+            apps/web/test-results
+            web.log
+            worker.log
+          retention-days: 7
+
+  docker:
+    name: Production image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Build image (not pushed)
+        run: docker buildx build --load -t buytrail-app:ci .
+      - name: Validate production compose file
+        run: |
+          printf 'SITE_DOMAIN=ci.invalid\nPOSTGRES_PASSWORD=x\nOBJECT_STORAGE_ACCESS_KEY=x\nOBJECT_STORAGE_SECRET_KEY=x\n' > .env.production
+          docker compose -f infra/compose.prod.yaml --env-file .env.production config --quiet

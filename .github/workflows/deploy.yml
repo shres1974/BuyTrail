@@ -1,0 +1,76 @@
+# CD: after CI passes on main, deploy to the single server over SSH and verify health.
+#
+# DISABLED until you opt in. To enable (see docs/deploy.md → "Automatic deploys"):
+#   1. Repository variable  DEPLOY_ENABLED = true
+#   2. Repository variable  DEPLOY_URL     = https://your-domain
+#   3. Secrets (environment "production"): DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+# The server keeps .env.production; no application secrets are stored in GitHub.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; never cancel one mid-way.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    if: vars.DEPLOY_ENABLED == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to server
+    needs: ci
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          # Pinned host key: refuses to connect if the server's identity changes.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+
+      - name: Pull and restart on the server
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            "set -euo pipefail
+             cd /opt/buytrail
+             git fetch --quiet origin main
+             git checkout --quiet --detach '$SHA'
+             docker compose -f infra/compose.prod.yaml --env-file .env.production up -d --build --remove-orphans
+             docker image prune -f >/dev/null"
+
+      - name: Wait for health (web + worker)
+        env:
+          URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf "$URL/api/health" | grep -q '"alive":true'; then
+              echo "Healthy: $URL"; exit 0
+            fi
+            sleep 5
+          done
+          echo "Deployment did not become healthy within 5 minutes"; exit 1
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

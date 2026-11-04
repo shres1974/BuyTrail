@@ -63,6 +63,14 @@ Last verified: 2026-11-04 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Com
 ## Deployment
 `Dockerfile` + `infra/compose.prod.yaml` (web, worker, Postgres, Redis, SeaweedFS, Caddy, migrate+seed, daily backup), tested locally on 2026-11-04 with `SITE_DOMAIN=localhost`. Verified: HTTPS and the HTTP→HTTPS redirect; HSTS and security headers; health showing database and worker alive; magic-link sign-in over SMTP with a Secure+HttpOnly session cookie; admin access through `ADMIN_EMAILS`; a non-allowlisted address gets no email; a backup file is written. Not yet deployed to a public server. Guide: `docs/deploy.md`.
 
+## CI/CD
+- `.github/workflows/ci.yml` runs on every push and pull request. Jobs: typecheck + lint + unit + match benchmark; integration against real Postgres/Redis/Mailpit/SeaweedFS started from `infra/compose.yaml`; Playwright E2E against a production build plus the worker; a production Docker image build and a compose-file check.
+- All actions are pinned to commit SHAs, and the workflow uses no secrets.
+- Validated locally with actionlint 1.7.7: no findings.
+- Checks were run locally with only the CI environment variables: typecheck, 72 unit, 92 integration, 0 false merges.
+- The first real run on GitHub is pending the push.
+- `.github/workflows/deploy.yml` deploys over SSH (with a pinned host key) after CI passes, then waits for health. It is off until `DEPLOY_ENABLED=true` is set (see deploy.md).
+
 ## Session log
 - Session 1 (previous agent): workspace, pinned deps, compose, config, Prisma schema + init migration, domain package (52 tests).
 - Session 2 (this one): constraints and generations migrations, db client, providers (demo + CSV), services, worker, web UI/API, scripts, integration and E2E tests, benchmarks, docs.
