@@ -12,3 +12,5 @@ apps/web/playwright-report/
 apps/web/next-env.d.ts
 .tmp/
 bench-results/raw/
+.env.production
+infra/backups/

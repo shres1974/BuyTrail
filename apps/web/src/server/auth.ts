@@ -9,7 +9,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { magicLink } from "better-auth/plugins/magic-link";
-import { loadConfig } from "@buytrail/config";
+import { emailAllowed, loadConfig } from "@buytrail/config";
 import { getPrisma } from "@buytrail/db";
 import { adminEmailMatch } from "@buytrail/services";
 import { services } from "./services";
@@ -52,8 +52,10 @@ function build() {
         storeToken: "hashed",
         sendMagicLink: async ({ email, url }) => {
           const s = services();
-          if (s.config.APP_MODE === "live" && s.config.emailAllowlist.length && !s.config.emailAllowlist.includes(email.toLowerCase())) {
-            s.log.warn("sign-in email suppressed: recipient not in allowlist", {});
+          // Not on the allowlist: silently send nothing. The response is identical either way, so
+          // the form does not reveal which addresses are allowed.
+          if (!emailAllowed(s.config.signinAllowlist, email)) {
+            s.log.warn("sign-in email suppressed: recipient not in SIGNIN_ALLOWLIST", {});
             return;
           }
           // Account-access email is separate from optional product alerts.

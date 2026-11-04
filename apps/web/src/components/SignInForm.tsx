@@ -24,7 +24,7 @@ export function SignInForm({ next, localMailbox }: { next: string; localMailbox:
             body: JSON.stringify({ email: email.trim(), callbackURL: next }),
           });
           if (r.status === 429) throw new Error("Too many sign-in attempts. Wait a minute and try again.");
-          if (!r.ok) throw new Error("Couldn't send the sign-in link. Try again.");
+          if (!r.ok) throw new Error("Couldn't send the sign-in link right now. Try again in a few minutes.");
           setState("sent");
         } catch (err) {
           setState("error");

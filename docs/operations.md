@@ -1,5 +1,7 @@
 # Operations
 
+To put the demo online, follow the step-by-step [deployment guide](deploy.md) (single server, Docker Compose, Caddy HTTPS).
+
 ## Processes
 - **web**: `pnpm build && pnpm start:web` (Next.js on :3000).
 - **worker**: `pnpm worker`. It must run continuously; reminders, email, and watch evaluation depend on it.
@@ -42,8 +44,8 @@
 - Refresh schedules exist per (listing, public context). Watched pairs refresh every 15 min and others every 4 h, but never faster than the source's minimum interval.
 - Worked example (Section 31.1): 500 pairs × 6/day = 3,000 + 20% reserve = 3,600 requests/day. Set `dailyRequestBudget` from the provider's actual quota, not from this example.
 
-## Backups and restore (not yet set up)
-This repository contains no backup configuration. Before a live pilot:
+## Backups and restore
+`infra/compose.prod.yaml` runs a daily `pg_dump` (7 kept, on the same server; see deploy.md). No restore drill has been done yet. Before a live pilot:
 1. Schedule `pg_dump -Fc` (or managed PITR) and enable bucket versioning plus lifecycle on the object store.
 2. Run a restore drill into an isolated environment:
    - Restore the database **with workers stopped**.

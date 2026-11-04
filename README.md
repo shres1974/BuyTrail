@@ -35,6 +35,9 @@ To demo a price alert:
 2. Use **Simulate a sample price change** to move one sample listing's price.
 3. Check **Alerts** and Mailpit.
 
+## Deploying the demo
+See [docs/deploy.md](docs/deploy.md): one Linux server, `docker compose -f infra/compose.prod.yaml up -d --build`, automatic HTTPS via Caddy. Sign-in is restricted to `SIGNIN_ALLOWLIST`.
+
 ## Commands
 | Command | Purpose |
 | --- | --- |
@@ -66,6 +69,7 @@ docs/           architecture, status, sources, data dictionary, security, ops, b
 ```
 
 ## Documentation
+- [Deployment guide](docs/deploy.md)
 - [Implementation status](docs/implementation-status.md): what is verified, blocked or deferred
 - [Architecture](docs/architecture.md) · [Security model](docs/security-model.md) · [Operations](docs/operations.md)
 - [Data dictionary](docs/data-dictionary.md) · [Benchmarks](docs/benchmarks.md) · [Decisions](docs/decisions/)

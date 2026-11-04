@@ -15,7 +15,7 @@ Last verified: 2026-11-04 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Com
 | `pnpm typecheck` | 0 errors (all packages + scripts) |
 | `pnpm lint` | 0 errors, 0 warnings |
 | `pnpm build` | ok (Next.js 16.4.5 production build) |
-| `pnpm test:unit` | 6 files, 70 tests passed |
+| `pnpm test:unit` | 6 files, 72 tests passed |
 | `pnpm test:integration` | 4 files, 92 tests passed (real Postgres `buytrail_test`, real Redis DB 5 for the worker test) |
 | `pnpm test:e2e` (web + worker running) | 9 passed (7 desktop Chromium, 2 Pixel 7 mobile) |
 | `pnpm match:benchmark` | 373 cases, 0 false merges, 0 missed |
@@ -50,7 +50,7 @@ Last verified: 2026-11-04 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Com
 
 ## Known limitations / next work
 1. **Live data is gated** (M4). Smallest next step: an owner decision on a source, then a capability record and an adapter behind `CatalogProvider`.
-2. No backup configuration or restore drill.
+2. Daily `pg_dump` backups in the production compose file (same server); no restore drill yet.
 3. Rate limiting is per process (ADR 0005).
 4. The PDF scanner is heuristic; real uploads in live mode need a real scanner.
 5. No purge jobs for `watch_evaluation`, completed `outbox_event` rows, or expired observations (`retainUntil` is stored but not yet swept).
@@ -59,6 +59,9 @@ Last verified: 2026-11-04 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Com
 8. No email bounce/delivery webhooks; "accepted" means accepted by SMTP only.
 9. Private (postal-code) quote contexts are modelled and access-checked, but no UI creates them and the demo provider quotes only the national context.
 10. The household, receipt-extraction, natural-language and replenishment features are deliberately deferred.
+
+## Deployment
+`Dockerfile` + `infra/compose.prod.yaml` (web, worker, Postgres, Redis, SeaweedFS, Caddy, migrate+seed, daily backup), tested locally on 2026-11-04 with `SITE_DOMAIN=localhost`. Verified: HTTPS and the HTTP→HTTPS redirect; HSTS and security headers; health showing database and worker alive; magic-link sign-in over SMTP with a Secure+HttpOnly session cookie; admin access through `ADMIN_EMAILS`; a non-allowlisted address gets no email; a backup file is written. Not yet deployed to a public server. Guide: `docs/deploy.md`.
 
 ## Session log
 - Session 1 (previous agent): workspace, pinned deps, compose, config, Prisma schema + init migration, domain package (52 tests).

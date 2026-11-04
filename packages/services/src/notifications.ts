@@ -14,7 +14,7 @@
  */
 import { withTx, type Db } from "@buytrail/db";
 import { backoffMs, emailNotBefore, formatMoney, money, type Clock } from "@buytrail/domain";
-import type { AppConfig } from "@buytrail/config";
+import { emailAllowed, type AppConfig } from "@buytrail/config";
 import { compareVariant } from "./catalog";
 import { SendError, type Mailer } from "./mailer";
 import { enqueueOutbox } from "./outbox";
@@ -173,7 +173,7 @@ export async function dispatchDelivery(db: Db, config: AppConfig, clock: Clock, 
     await suppress(db, d.id, "email_disabled_in_environment");
     return "suppressed";
   }
-  if (config.APP_MODE !== "local" && config.emailAllowlist.length && !config.emailAllowlist.includes(user.email.toLowerCase())) {
+  if (config.APP_MODE !== "local" && !emailAllowed(config.emailAllowlist, user.email)) {
     await suppress(db, d.id, "recipient_not_in_test_allowlist");
     return "suppressed";
   }

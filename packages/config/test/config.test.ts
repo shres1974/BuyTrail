@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, parseConfig, redactedConfig } from "../src";
+import { ConfigError, emailAllowed, parseConfig, redactedConfig } from "../src";
 
 const base = {
   DATABASE_URL: "postgresql://u:p@localhost:5432/db",
@@ -57,5 +57,17 @@ describe("configuration validation (Section 29)", () => {
     expect(JSON.stringify(r)).not.toContain("local_only_secret");
     expect(r.DATABASE_URL).toBe("[redacted]");
     expect(r.AUTH_SECRET).toBe("[redacted]");
+  });
+  it("public demo with real email requires a sign-in allowlist", () => {
+    const pub = { ...base, APP_BASE_URL: "https://demo.example", EMAIL_MODE: "smtp" };
+    expect(() => parseConfig(pub)).toThrow(/SIGNIN_ALLOWLIST/);
+    expect(parseConfig({ ...pub, SIGNIN_ALLOWLIST: "me@example.com" }).signinAllowlist).toEqual(["me@example.com"]);
+  });
+  it("allowlist matches exact addresses and @domain entries, case-insensitively", () => {
+    expect(emailAllowed([], "anyone@x.test")).toBe(true);
+    expect(emailAllowed(["me@example.com"], "ME@Example.com")).toBe(true);
+    expect(emailAllowed(["me@example.com"], "you@example.com")).toBe(false);
+    expect(emailAllowed(["@friends.test"], "a@friends.test")).toBe(true);
+    expect(emailAllowed(["@friends.test"], "a@evilfriends.test")).toBe(false);
   });
 });

@@ -21,6 +21,11 @@ export const configSchema = z.object({
   EMAIL_MODE: z.enum(["local", "disabled", "smtp"]).default("local"),
   EMAIL_FROM: z.string().default("BuyTrail <no-reply@buytrail.local>"),
   EMAIL_TEST_ALLOWLIST: z.string().default(""),
+  /**
+   * Comma-separated emails (or "@domain" entries) allowed to receive sign-in links.
+   * Empty = anyone. Required for any public deployment that sends real email.
+   */
+  SIGNIN_ALLOWLIST: z.string().default(""),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   SMTP_USER: z.string().optional(),
@@ -55,6 +60,7 @@ export const configSchema = z.object({
 export type AppConfig = z.infer<typeof configSchema> & {
   adminEmails: string[];
   emailAllowlist: string[];
+  signinAllowlist: string[];
 };
 
 export class ConfigError extends Error {
@@ -106,6 +112,11 @@ export function parseConfig(env: Record<string, string | undefined>): AppConfig 
   if (c.APP_MODE === "demo" && c.LIVE_PROVIDERS_ENABLED) {
     problems.push("LIVE_PROVIDERS_ENABLED cannot be true in demo mode");
   }
+  // A publicly reachable deployment that sends real email must not let anyone on the internet
+  // trigger messages from the operator's mail account (Section 21.3: demo restricted to allowlist).
+  if (c.EMAIL_MODE === "smtp" && c.APP_BASE_URL.startsWith("https://") && c.APP_MODE !== "live" && !c.SIGNIN_ALLOWLIST.trim()) {
+    problems.push("SIGNIN_ALLOWLIST must be set for a public demo deployment that sends real email");
+  }
   if (c.AI_FEATURES_ENABLED) {
     problems.push("AI_FEATURES_ENABLED=true but no AI provider is implemented; keep it false");
   }
@@ -116,7 +127,15 @@ export function parseConfig(env: Record<string, string | undefined>): AppConfig 
       .split(",")
       .map((x) => x.trim().toLowerCase())
       .filter(Boolean);
-  return { ...c, adminEmails: split(c.ADMIN_EMAILS), emailAllowlist: split(c.EMAIL_TEST_ALLOWLIST) };
+  return { ...c, adminEmails: split(c.ADMIN_EMAILS), emailAllowlist: split(c.EMAIL_TEST_ALLOWLIST), signinAllowlist: split(c.SIGNIN_ALLOWLIST) };
+}
+
+/** Exact address or "@domain" match; an empty list allows everyone. */
+export function emailAllowed(list: string[], email: string): boolean {
+  if (list.length === 0) return true;
+  const e = email.trim().toLowerCase();
+  const domain = e.slice(e.lastIndexOf("@"));
+  return list.some((x) => x === e || (x.startsWith("@") && x === domain));
 }
 
 let cached: AppConfig | undefined;
