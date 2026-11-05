@@ -202,3 +202,13 @@ describe("HTTP connector (stubbed fetch)", () => {
     await expect(p.lookup({ externalListingId: "x", externalVariantKey: "", sellerKey: "y", contextKey: "ca-national" })).rejects.toMatchObject({ code: "unsupported_operation" });
   });
 });
+
+describe("Ninja air fryer (Canadian AF100C)", () => {
+  const ninja = LIVE_VARIANT_BY_ID.get("var_live_ninja_af101")!.rules;
+  it("matches AF100C, not the red AF100CRD or other models", () => {
+    expect(titleMatches("Ninja Air Fryer af100c", ninja)).toBe(true);
+    expect(titleMatches("Ninja Air Fryer af100crd", ninja)).toBe(false);
+    expect(titleMatches("Ninja Air Fryer Pro 4-in-1 with 5 QT Capacity af141", ninja)).toBe(false);
+    expect(titleMatches("Ninja 4 Qt. Air Fryer", ninja)).toBe(false);
+  });
+});
