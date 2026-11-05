@@ -83,6 +83,23 @@ describe("sweep → watch → alert", () => {
     const h = await variantHistory(k.db, V, PUBLIC_CONTEXT_ID, "new", k.clock.now());
     expect(h.isDemo).toBe(false);
   });
+
+  it("a seller missing from the next search is withdrawn; an empty search changes nothing", async () => {
+    const res = JSON.parse(JSON.stringify(FIXTURE)) as { shopping_results: Array<Record<string, unknown>> };
+    res.shopping_results = res.shopping_results.filter((x) => x.source !== "Staples");
+    body = res;
+    k.clock.advance(73 * 3600_000);
+    await sweepLiveVariant(k.db, k.clock, { ...k.config, SERPAPI_MONTHLY_BUDGET: 1000 }, provider(), tracked, { ignoreDailyCap: true });
+    const o = await variantOffers(k.db, V, PUBLIC_CONTEXT_ID, "new", k.clock.now());
+    expect(o.ranked.map((x) => x.merchant.name)).not.toContain("Staples");
+    body = { search_metadata: { status: "Success" }, shopping_results: [] };
+    await sweepLiveVariant(k.db, k.clock, { ...k.config, SERPAPI_MONTHLY_BUDGET: 1000 }, provider(), tracked, { ignoreDailyCap: true });
+    const o2 = await variantOffers(k.db, V, PUBLIC_CONTEXT_ID, "new", k.clock.now());
+    expect(o2.ranked.length).toBe(o.ranked.length);
+    body = FIXTURE;
+    await sweepLiveVariant(k.db, k.clock, { ...k.config, SERPAPI_MONTHLY_BUDGET: 1000 }, provider(), tracked, { ignoreDailyCap: true });
+    expect((await variantOffers(k.db, V, PUBLIC_CONTEXT_ID, "new", k.clock.now())).ranked.map((x) => x.merchant.name)).toContain("Staples");
+  });
 });
 
 describe("budgets", () => {

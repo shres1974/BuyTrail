@@ -227,6 +227,8 @@ function phraseMatches(title: string, phrase: string): boolean {
 }
 
 export function titleMatches(rawTitle: string, rules: TitleRules): boolean {
+  // "Headphones + JBL earbuds", "... w/ stand", "... | Pro Stand Bundle": add-ons aren't the product.
+  if (/\s\+\s?\S|\bw\/\s?\S|\bwith (?:stand|case|charger|earbuds|speaker)\b|\bpro stand\b/i.test(rawTitle)) return false;
   const title = normalizeText(rawTitle);
   if (!rules.any.some((p) => phraseMatches(title, p))) return false;
   if (rules.all?.some((group) => !group.some((p) => phraseMatches(title, p)))) return false;
@@ -236,22 +238,40 @@ export function titleMatches(rawTitle: string, rules: TitleRules): boolean {
 
 // ── Attribution to a tracked variant (pure) ──────────────────────────────────────────────
 
-export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number };
+export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number; implausible: number };
+
+/** Prices below this fraction of the median matched price are treated as implausible (scam/mislisted). */
+export const IMPLAUSIBLE_PRICE_FRACTION_BPS = 4000n;
+
+function medianMinor(values: bigint[]): bigint | null {
+  if (!values.length) return null;
+  const s = [...values].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2n;
+}
 
 /**
- * Keep results whose title passes the variant's rules; one listing per (seller, condition),
- * choosing the lowest item price (ties: earlier position).
+ * Keep results whose title passes the variant's rules and whose price is plausible relative to the
+ * other matched results (at least 40% of the median, same currency); one listing per
+ * (seller, condition), choosing the lowest item price (ties: earlier position).
  */
 export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[], now: Date, sourceId = SERPAPI_SOURCE_ID): Attribution {
   const best = new Map<string, ShoppingOffer>();
-  let matched = 0;
-  for (const o of offers) {
-    if (!titleMatches(o.title, tracked.rules)) continue;
-    matched++;
+  const titled = offers.filter((o) => titleMatches(o.title, tracked.rules));
+  let implausible = 0;
+  const medians = new Map<string, bigint | null>();
+  for (const cur of ["CAD", "USD"] as const) medians.set(cur, medianMinor(titled.filter((o) => o.currency === cur).map((o) => o.priceMinor)));
+  for (const o of titled) {
+    const med = medians.get(o.currency) ?? null;
+    if (titled.filter((x) => x.currency === o.currency).length >= 3 && med !== null && o.priceMinor * 10000n < med * IMPLAUSIBLE_PRICE_FRACTION_BPS) {
+      implausible++;
+      continue;
+    }
     const key = `${o.sellerSlug}|${o.condition}`;
     const prev = best.get(key);
     if (!prev || o.priceMinor < prev.priceMinor || (o.priceMinor === prev.priceMinor && o.position < prev.position)) best.set(key, o);
   }
+  const matched = titled.length;
   const listings = [...best.values()].map((o) =>
     validateListing({
       sourceId,
@@ -285,7 +305,7 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
       categoryHint: tracked.category,
     }),
   );
-  return { listings, matched, rejected: offers.length - matched };
+  return { listings, matched, rejected: offers.length - matched, implausible };
 }
 
 // ── HTTP connector ───────────────────────────────────────────────────────────────────────

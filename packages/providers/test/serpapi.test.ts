@@ -82,6 +82,9 @@ describe("title rules", () => {
     expect(titleMatches("Sony WH-1000XM4 Headphones Black", xm5.rules)).toBe(false);
     expect(titleMatches("Replacement Ear Pads for Sony WH-1000XM5", xm5.rules)).toBe(false);
     expect(titleMatches("Hard Case for Sony WH-1000XM5", xm5.rules)).toBe(false);
+    expect(titleMatches("Sony Wh-1000xm5 Over-Ear Headphones + Jbl T110 In Ear", xm5.rules)).toBe(false);
+    expect(titleMatches("Sony WH-1000XM5 Headphones (Black) | Pro Stand Bundle", xm5.rules)).toBe(false);
+    expect(titleMatches("Sony WH-1000XM5 w/ charger", xm5.rules)).toBe(false);
   });
   it("monitor variants don't absorb sibling models", () => {
     const asus = LIVE_VARIANT_BY_ID.get("var_live_asus_vg27aq")!.rules;
@@ -137,10 +140,20 @@ describe("attribution to the tracked variant", () => {
     expect(by("Staples")!.shipping).toMatchObject({ kind: "known", amount: { amountMinor: "1200" } });
     expect(by("audio_outlet", "refurbished")!.platform).toBe("eBay");
   });
-  it("listing ids are stable across refreshes (variant + seller + condition)", () => {
+  it("listing ids are stable across refreshes (variant + seller + condition)", async () => {
     const again = attributeOffers(xm5, parseShoppingResponse(FIXTURE, xm5.query).offers, new Date("2026-11-08T15:00:00Z"));
     expect(again.listings.map((l) => l.externalListingId).sort()).toEqual(a.listings.map((l) => l.externalListingId).sort());
     expect(by("Best Buy")!.externalListingId).toBe("var_live_sony_wh1000xm5_black:best-buy:new");
+  });
+  it("drops implausibly cheap matches (below 40% of the median price)", () => {
+    const parsed = parseShoppingResponse(
+      { shopping_results: [...FIXTURE.shopping_results, { position: 20, title: "SONY ヘッドフォン WH-1000XM5 Sony WH 1000XM5 Wireless", source: "developmentwebsite.ca", price: "$69.19", extracted_price: 69.19 }] },
+      xm5.query,
+    );
+    const b = attributeOffers(xm5, parsed.offers, clock.now());
+    expect(b.implausible).toBe(1);
+    expect(b.listings.some((l) => l.sellerName === "developmentwebsite.ca")).toBe(false);
+    expect(b.listings).toHaveLength(7);
   });
 });
 

@@ -20,7 +20,7 @@ import {
   type TrackedVariant,
 } from "@buytrail/providers";
 import type { AppConfig } from "@buytrail/config";
-import { acceptObservation, claimRefresh, upsertListingFromSource } from "./ingestion";
+import { acceptObservation, bumpVariantGeneration, claimRefresh, upsertListingFromSource } from "./ingestion";
 import { PUBLIC_CONTEXT_ID } from "./catalog";
 import { recordSourceFailure, recordSourceSuccess, reserveSourceRequest } from "./sources";
 import type { Logger } from "./context";
@@ -73,13 +73,14 @@ export async function liveSearchesUsed(db: Db, now: Date, days = ROLLING_WINDOW_
 }
 
 export type SweepOutcome =
-  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number }
+  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number; implausible: number }
   | { variantId: string; kind: "failed"; code: string }
   | { variantId: string; kind: "skipped"; reason: "monthly_budget_exhausted" | "daily_budget_exhausted" | "rate_limited" | "circuit_open" | "disabled" };
 
 /** Persist one variant's sweep result through the normal claim → accept pipeline. */
-async function ingestSweep(db: Db, clock: Clock, listings: NormalizedListing[]): Promise<number> {
+async function ingestSweep(db: Db, clock: Clock, variantId: string, listings: NormalizedListing[]): Promise<number> {
   let applied = 0;
+  const seen = new Set<string>();
   for (const n of listings) {
     const merchantId = `m_live_${n.sellerKey}`.slice(0, 160);
     await db.merchant.upsert({
@@ -88,6 +89,7 @@ async function ingestSweep(db: Db, clock: Clock, listings: NormalizedListing[]):
       update: { name: n.sellerName, platform: n.platform },
     });
     const listingId = await upsertListingFromSource(db, n, merchantId, false);
+    seen.add(listingId);
     const claim = await claimRefresh(db, clock, listingId, PUBLIC_CONTEXT_ID, "import");
     if (!claim) continue;
     // A new independent search re-checks a price that was held for anomaly verification.
@@ -95,6 +97,20 @@ async function ingestSweep(db: Db, clock: Clock, listings: NormalizedListing[]):
     const r = await acceptObservation(db, clock, claim, n, { verification: existing?.anomalyStatus === "pending_verification" });
     if (r.applied) applied++;
   }
+  // A seller missing from the latest search (or now filtered out) is no longer offered for this
+  // variant; withdraw it. It reappears automatically if a later search returns it again. An empty
+  // result is treated as inconclusive, so a transient blank search never wipes every offer.
+  if (!listings.length) return applied;
+  const now = clock.now();
+  await withTx(db, async (tx) => {
+    const gone = await tx.sourceListing.findMany({
+      where: { sourceId: SERPAPI_SOURCE_ID, externalListingId: { startsWith: `${variantId}:` }, removedAt: null, id: { notIn: [...seen] } },
+      select: { id: true },
+    });
+    if (!gone.length) return;
+    await tx.sourceListing.updateMany({ where: { id: { in: gone.map((g) => g.id) } }, data: { removedAt: now } });
+    await bumpVariantGeneration(tx, variantId, PUBLIC_CONTEXT_ID, `live-withdrawn:${now.getTime()}`, now);
+  });
   return applied;
 }
 
@@ -121,15 +137,15 @@ export async function sweepLiveVariant(
   await db.liveSweep.update({ where: { variantId }, data: { lastAttemptAt: now } });
   try {
     const s = await withTimeout(SWEEP_TIMEOUT_MS, (signal) => provider.sweep(tracked, signal));
-    const applied = await ingestSweep(db, clock, s.listings);
+    const applied = await ingestSweep(db, clock, variantId, s.listings);
     const done = clock.now();
     await recordSourceSuccess(db, SERPAPI_SOURCE_ID, done);
-    const result = { listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, skipped: s.skipped, total: s.total };
+    const result = { listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, skipped: s.skipped, total: s.total };
     await db.liveSweep.update({
       where: { variantId },
       data: { lastSuccessAt: done, nextDueAt: new Date(done.getTime() + config.SERPAPI_REFRESH_HOURS * 3600_000), lastResult: result, lastErrorCode: null },
     });
-    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected };
+    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible };
   } catch (e) {
     const pe = e instanceof ProviderError ? e : new ProviderError("invalid_response", "Unexpected sweep failure");
     const at = clock.now();
