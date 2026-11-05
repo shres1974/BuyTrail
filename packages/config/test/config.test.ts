@@ -27,9 +27,16 @@ describe("configuration validation (Section 29)", () => {
       expect(p).toMatch(/EMAIL_MODE=local/);
     }
   });
-  it("G30: demo mode cannot enable real receipt uploads or live providers", () => {
+  it("G30: demo mode cannot enable real receipt uploads", () => {
     expect(() => parseConfig({ ...base, REAL_RECEIPT_UPLOADS_ENABLED: "true" })).toThrow(/G30/);
-    expect(() => parseConfig({ ...base, LIVE_PROVIDERS_ENABLED: "true" })).toThrow(/demo mode/);
+  });
+  it("live providers need a SerpApi key; the key is redacted", () => {
+    expect(() => parseConfig({ ...base, LIVE_PROVIDERS_ENABLED: "true" })).toThrow(/SERPAPI_API_KEY/);
+    const c = parseConfig({ ...base, LIVE_PROVIDERS_ENABLED: "true", SERPAPI_API_KEY: "serp_secret_value" });
+    expect(c.LIVE_PROVIDERS_ENABLED).toBe(true);
+    expect([c.SERPAPI_REFRESH_HOURS, c.SERPAPI_DAILY_BUDGET, c.SERPAPI_MONTHLY_BUDGET]).toEqual([72, 6, 200]);
+    expect(JSON.stringify(redactedConfig(c))).not.toContain("serp_secret_value");
+    expect(() => parseConfig({ ...base, SERPAPI_REFRESH_HOURS: "1" })).toThrow(ConfigError);
   });
   it("live mode with uploads requires a scanner", () => {
     expect(() =>

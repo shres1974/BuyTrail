@@ -17,6 +17,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const s = services();
   const actor = await currentActor();
   const demo = s.config.APP_MODE !== "live";
+  const mixed = demo && s.config.LIVE_PROVIDERS_ENABLED;
   return (
     <html lang="en-CA">
       <body className="min-h-screen">
@@ -25,7 +26,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </a>
         {demo && (
           <div role="note" aria-label="Sample data notice" className="border-b border-sample/30 bg-sample-soft px-4 py-2 text-center text-sm text-sample" data-testid="sample-banner">
-            <strong>Interactive demonstration with sample data.</strong> Brands, stores, prices, history and alerts are fictional. Don&apos;t upload real receipts.
+            {mixed ? (
+              <>
+                <strong>Interactive demonstration: sample data plus some live prices.</strong> Items marked &ldquo;Sample data&rdquo; are fictional. Items marked &ldquo;Live price&rdquo; are real Google Shopping prices, refreshed every few days. Don&apos;t upload real receipts.
+              </>
+            ) : (
+              <>
+                <strong>Interactive demonstration with sample data.</strong> Brands, stores, prices, history and alerts are fictional. Don&apos;t upload real receipts.
+              </>
+            )}
           </div>
         )}
         <header className="border-b border-line bg-card">
@@ -73,7 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </main>
         <footer className="mx-auto max-w-6xl px-4 pb-10 text-xs text-muted">
           BuyTrail compares known totals before tax from supported sources only. Retailers handle checkout, payment, delivery and returns.
-          {demo && " Operating level: D0 demonstration — no live retailer data is connected."}
+          {demo && (mixed ? " Operating level: D0 demonstration. Live prices come from Google Shopping via SerpApi; stock and fees are as listed there." : " Operating level: D0 demonstration — no live retailer data is connected.")}
         </footer>
       </body>
     </html>

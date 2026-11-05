@@ -1,8 +1,36 @@
 # Source capabilities
 
-Unknown permission means the capability stays disabled (Section 9.1). Live comparison remains **gated**: no live or sandbox source is approved or connected in this build. Operating level: **D0 (demonstration)**.
+Unknown permission means the capability stays disabled (Section 9.1). Operating level: **D0 (demonstration)**. The public demo is *mixed*: the fictional sample catalog stays, and one live price source can be enabled next to it. Every record is labelled by origin ("Sample data" or "Live price · Google Shopping").
 
 ## Active sources
+
+### `serpapi-google-shopping` (live, owner-approved for the demonstration)
+
+| Field | Value |
+| --- | --- |
+| Owner / market | SerpApi (Google Shopping results) / CA (`gl=ca`, `google.ca`, location Toronto) |
+| Integration type | HTTPS JSON API, `engine=google_shopping` (`packages/providers/src/serpapi.ts`) |
+| Approval status | `approved` by the project owner on 2026-11-05 for a non-commercial portfolio demonstration. The owner is responsible for compliance with SerpApi's terms of service and for how Google Shopping data is displayed and retained. |
+| Credentials | `SERPAPI_API_KEY` in `.env.production` on the server only (mode 600). It's never committed, logged or included in errors. |
+| Enabled by | `LIVE_PROVIDERS_ENABLED=true` (config refuses to start without a key) |
+| Catalog | 15 curated real products, one variant each (`packages/providers/src/live-catalog.ts`). Visitor searches only query the stored catalog and never call SerpApi. |
+| Matching | A result belongs to a variant only if its title passes the variant's explicit rules (model code and, where relevant, size/edition required; other colours, generations, accessories, multi-packs and bundles rejected). One listing per seller + condition, lowest price kept. |
+| Data policy | Listed results count as **in stock** unless marked otherwise. Shipping is **known** only when stated ("Free delivery", "$9.99 delivery"); "free over $X" is a threshold; otherwise **unknown** (never zero). **Fees: none** (Google Shopping lists the seller's price). Instalment prices (`/mo`) and non-CAD/USD prices are skipped; USD is shown but not ranked. Condition from title/labels (refurbished/renewed, used/open box). |
+| Quotas | Free plan: 250 searches/month. Hard caps enforced before every call: `SERPAPI_DAILY_BUDGET` (default 6) via the atomic `source_budget_day` counter, and `SERPAPI_MONTHLY_BUDGET` (default 200) over a rolling 30 days. Refresh interval `SERPAPI_REFRESH_HOURS` (default 72) ≈ 150 searches/month for 15 products. |
+| Refresh | Worker checks every 30 min and sweeps at most one due variant. No per-listing lookups (`lookup: false`), and watches, alerts and pre-send revalidation use stored quotes only. |
+| Freshness | Refresh interval + 24 h. Older prices move to "Not recently confirmed" and stop counting for alerts. |
+| History | Allowed (owner decision); retention 180 days. |
+| Images | Not displayed (`imageDisplayAllowed: false`). |
+| Outbound links | Seller link from the result when present, else the Google Shopping product page (`https` only). |
+| Failure handling | 401/invalid key → `invalid_credentials` (sweeps stop); 429/out of searches → `quota_exhausted` (24 h back-off); 5xx/network → retry after 6 h. A failure never changes stored prices. |
+| Known blind spots | Stock, fees and shipping are as reported by Google Shopping, not checkout quotes. Seller names come from Google Shopping. Sellers that don't appear in a given search keep their last price until it goes stale. |
+
+Operator commands (each searched variant costs one credit):
+```bash
+pnpm live:sweep --status                 # usage and schedule, no API calls
+pnpm live:sweep --max 3                  # sweep up to 3 due variants
+pnpm live:sweep --all --max 15 --bootstrap   # first fill; exceeds today's cap, still bounded by the 30-day cap
+```
 
 ### `demo-retail-feed`, `demo-marketplace-feed` (demonstration)
 

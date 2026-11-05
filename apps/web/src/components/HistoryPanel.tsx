@@ -1,5 +1,5 @@
 import type { variantHistory } from "@buytrail/services";
-import { SampleBadge } from "./ui";
+import { LiveBadge, SampleBadge } from "./ui";
 
 type History = Awaited<ReturnType<typeof variantHistory>>;
 
@@ -36,7 +36,7 @@ export function HistoryPanel({ history }: { history: History }) {
   return (
     <div className="mt-2 space-y-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        {history.isDemo && <SampleBadge />}
+        {history.isDemo ? <SampleBadge /> : <LiveBadge />}
         <span className="text-muted">{history.coverageLabel}</span>
       </div>
       {history.lowestLabel && <p className="font-medium">{history.lowestLabel}</p>}

@@ -6,6 +6,7 @@ Money is stored as `BIGINT` minor units plus a `currency`, and JSON carries it a
 | --- | --- | --- |
 | user, session, account, verification | Private / Better Auth | `role` (user/admin), `timezone`, email preferences, `deletionState`, `settingsVersion` for optimistic edits. |
 | source | Admin | mode (demo/sandbox/live), approvalStatus, capabilities JSON, allowedHosts, freshness, historyRetentionDays (null = history forbidden), daily budget, circuit/rate-limit state. |
+| live_sweep | Admin | Per-variant search schedule for search-based live sources (SerpApi): nextDueAt, last attempt/success, last error code, last result counts. One search refreshes every seller's offer for that variant. |
 | source_budget_day | Operational | Atomic conditional increment per source and UTC day. |
 | merchant, product, product_variant, product_identifier | Public catalog | Variants carry the exact critical attributes. GTINs are normalized to a zero-padded GTIN-14 string; the original is kept. `product.searchVector` is a generated tsvector. |
 | source_listing | Source-controlled | Unique on (source, market, externalListingId, externalVariantKey, sellerKey). `variantId` only when `matchStatus='verified'` (CHECK). `refreshGeneration` is the last claimed generation. |

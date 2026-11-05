@@ -5,7 +5,7 @@ import { AppError, searchCatalog } from "@buytrail/services";
 import { services } from "@/server/services";
 import { SearchForm } from "@/components/SearchForm";
 import { RequestProductForm } from "@/components/RequestProductForm";
-import { Badge, Card, Notice, SampleBadge } from "@/components/ui";
+import { Badge, Card, Notice, LiveBadge, SampleBadge } from "@/components/ui";
 
 export const metadata = { title: "Search" };
 
@@ -98,7 +98,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               {result.coverage.sources.map((src) => (
                 <li key={src.id}>
                   {src.name}
-                  {src.mode === "demo" ? " — sample data" : ""}
+                  {src.mode === "demo" ? " — sample data" : " — live prices"}
                 </li>
               ))}
             </ul>
@@ -149,7 +149,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                     {it.needsVariantChoice && <> · {it.variantCount} variants</>}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {it.isDemo && <SampleBadge />}
+                    {it.isDemo ? <SampleBadge /> : <LiveBadge />}
                     <Badge tone={condition === "new" ? "neutral" : "warn"}>{condition[0]!.toUpperCase() + condition.slice(1)}</Badge>
                     <Badge>{it.eligibleOfferCount} eligible offer{it.eligibleOfferCount === 1 ? "" : "s"}</Badge>
                     {it.incompleteTotalCount > 0 && <Badge tone="warn">{it.incompleteTotalCount} with total not confirmed</Badge>}

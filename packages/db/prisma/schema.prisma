@@ -706,6 +706,20 @@ model DemoPriceOverride {
   @@map("demo_price_override")
 }
 
+// Per-variant search schedule for search-based live sources (one search refreshes every seller).
+model LiveSweep {
+  variantId     String    @id
+  sourceId      String
+  nextDueAt     DateTime
+  lastAttemptAt DateTime?
+  lastSuccessAt DateTime?
+  lastErrorCode String?
+  lastResult    Json?
+
+  @@index([sourceId, nextDueAt])
+  @@map("live_sweep")
+}
+
 model ProductRequest {
   id        String   @id @default(cuid())
   query     String

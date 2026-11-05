@@ -23,6 +23,15 @@ export function SampleBadge() {
   return <Badge tone="sample">Sample data</Badge>;
 }
 
+/** Real price from Google Shopping. Stock/fees follow the source's listing, not a checkout quote. */
+export function LiveBadge() {
+  return (
+    <Badge tone="teal" title="Real price from Google Shopping (via SerpApi). Stock and fees as listed there; the retailer's checkout is authoritative.">
+      Live price · Google Shopping
+    </Badge>
+  );
+}
+
 export function Notice({ tone = "neutral", title, children }: { tone?: Tone; title?: string; children: ReactNode }) {
   return (
     <div role={tone === "bad" ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm ${TONES[tone]}`}>

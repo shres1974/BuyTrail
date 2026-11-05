@@ -38,6 +38,13 @@ export const configSchema = z.object({
   OBJECT_STORAGE_SECRET_KEY: z.string().min(1),
   OBJECT_STORAGE_FORCE_PATH_STYLE: bool.default(true),
   LIVE_PROVIDERS_ENABLED: bool.default(false),
+  /** SerpApi key for the Google Shopping live source (secret; never logged). */
+  SERPAPI_API_KEY: z.string().optional(),
+  /** How often each tracked live variant is re-searched (one SerpApi credit per search). */
+  SERPAPI_REFRESH_HOURS: intWithCeiling(72, 12, 24 * 30),
+  /** Hard caps on SerpApi searches, enforced before every request. */
+  SERPAPI_DAILY_BUDGET: intWithCeiling(6, 0, 1000),
+  SERPAPI_MONTHLY_BUDGET: intWithCeiling(200, 0, 30000),
   AI_FEATURES_ENABLED: bool.default(false),
   REAL_RECEIPT_UPLOADS_ENABLED: bool.default(false),
   RECEIPT_SCANNER: z.enum(["builtin-structural", "none"]).default("builtin-structural"),
@@ -109,8 +116,10 @@ export function parseConfig(env: Record<string, string | undefined>): AppConfig 
   if (c.APP_MODE === "demo" && c.REAL_RECEIPT_UPLOADS_ENABLED) {
     problems.push("REAL_RECEIPT_UPLOADS_ENABLED cannot be true in demo mode (G30)");
   }
-  if (c.APP_MODE === "demo" && c.LIVE_PROVIDERS_ENABLED) {
-    problems.push("LIVE_PROVIDERS_ENABLED cannot be true in demo mode");
+  // Mixed demonstration: demo mode may add the live price source next to the sample catalog.
+  // Every record stays labelled by origin (sample vs. live). Receipt uploads remain blocked.
+  if (c.LIVE_PROVIDERS_ENABLED && !c.SERPAPI_API_KEY?.trim()) {
+    problems.push("LIVE_PROVIDERS_ENABLED=true requires SERPAPI_API_KEY");
   }
   // A publicly reachable deployment that sends real email must not let anyone on the internet
   // trigger messages from the operator's mail account (Section 21.3: demo restricted to allowlist).

@@ -27,6 +27,7 @@
     "seed:demo": "tsx scripts/seed-demo.ts",
     "doctor": "tsx scripts/doctor.ts",
     "source:probe": "tsx scripts/source-probe.ts",
+    "live:sweep": "tsx scripts/live-sweep.ts",
     "admin:grant": "tsx scripts/admin-grant.ts",
     "bench": "tsx scripts/bench.ts",
     "match:benchmark": "tsx scripts/match-benchmark.ts"

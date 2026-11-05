@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AppError, PUBLIC_CONTEXT_ID, productDetail, variantHistory, variantOffers, type OfferDTO } from "@buytrail/services";
 import { currentActor } from "@/server/http";
 import { services } from "@/server/services";
-import { Badge, Card, Notice, SampleBadge } from "@/components/ui";
+import { Badge, Card, LiveBadge, Notice, SampleBadge } from "@/components/ui";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { WatchForm } from "@/components/WatchForm";
 import { DemoPriceSimulator } from "@/components/DemoPriceSimulator";
@@ -25,7 +25,7 @@ function OfferRow({ o, highlight }: { o: OfferDTO; highlight?: boolean }) {
         {o.merchant.name}
         {o.merchant.platform && <span className="block text-xs font-normal text-muted">via {o.merchant.platform}</span>}
         <span className="mt-1 flex flex-wrap gap-1">
-          {o.isDemo && <SampleBadge />}
+          {o.isDemo ? <SampleBadge /> : <LiveBadge />}
           <Badge>{o.condition[0]!.toUpperCase() + o.condition.slice(1)}</Badge>
           {o.stock === "in_stock" ? <Badge tone="good">In stock</Badge> : o.stock === "out_of_stock" ? <Badge tone="bad">Out of stock</Badge> : <Badge tone="warn">Stock unknown</Badge>}
         </span>
@@ -93,7 +93,7 @@ function OfferCard({ o, highlight }: { o: OfferDTO; highlight?: boolean }) {
         </dd>
       </dl>
       <div className="mt-2 flex flex-wrap items-center gap-1">
-        {o.isDemo && <SampleBadge />}
+        {o.isDemo ? <SampleBadge /> : <LiveBadge />}
         <Badge>{o.condition[0]!.toUpperCase() + o.condition.slice(1)}</Badge>
         {o.stock === "in_stock" ? <Badge tone="good">In stock</Badge> : o.stock === "out_of_stock" ? <Badge tone="bad">Out of stock</Badge> : <Badge tone="warn">Stock unknown</Badge>}
         {o.reasonText.map((r) => (
@@ -173,7 +173,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <header>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.title}</h1>
-          {product.isDemo && <SampleBadge />}
+          {product.isDemo ? <SampleBadge /> : <LiveBadge />}
         </div>
         {product.description && <p className="mt-1 max-w-3xl text-muted">{product.description}</p>}
       </header>

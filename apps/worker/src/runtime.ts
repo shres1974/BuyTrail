@@ -9,6 +9,7 @@ import { Redis } from "ioredis";
 import {
   expireExports,
   handleOutbox,
+  liveProvider,
   processDeletionTasks,
   processDueReminders,
   purgeExpiredIdempotency,
@@ -17,6 +18,7 @@ import {
   relayOutbox,
   RetryLater,
   scheduleDueRefreshes,
+  sweepDueLiveVariants,
   sweepExpiredQuotes,
   syncRefreshSchedules,
   type Services,
@@ -45,6 +47,8 @@ export type WorkerOptions = {
   tickMs?: number;
   /** Demo only: periodically refresh every demo listing to emulate a feed. */
   demoRefreshMs?: number | null;
+  /** Live source sweep check interval (null disables). Each check sweeps at most one due variant. */
+  liveSweepMs?: number | null;
   workerId?: string;
 };
 
@@ -120,6 +124,11 @@ export async function startWorker(s: Services, opts: WorkerOptions): Promise<Wor
   every(10_000, "heartbeat", beat);
   every(5 * 60_000, "schedule-sync", () => syncRefreshSchedules(s.db, s.clock.now(), { watchedSeconds: 15 * 60, idleSeconds: 4 * 3600 }));
   if (opts.demoRefreshMs && s.config.APP_MODE === "demo") every(opts.demoRefreshMs, "demo-refresh", () => refreshAllDemo(s.db, s.clock));
+  const live = liveProvider(s.config, s.clock);
+  if (live && opts.liveSweepMs) {
+    // One due variant per check, spreading searches out; budgets are enforced before each call.
+    every(opts.liveSweepMs, "live-sweep", () => sweepDueLiveVariants(s.db, s.clock, s.config, live, { max: 1, log: s.log }));
+  }
 
   s.log.info("worker started", { workerId, mode: s.config.APP_MODE });
 

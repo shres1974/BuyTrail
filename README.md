@@ -2,7 +2,7 @@
 
 A Canada-first shopping comparison and purchase companion. Pick the exact product variant, compare offers by **known total before tax**, set a target-price watch, then keep the purchase, a private receipt and a confirmed return-date reminder in one notebook. Retailers handle checkout.
 
-> **Status: D0 — interactive demonstration with sample data.** All brands, stores, prices, history and alerts are fictional and labelled as such. No live retailer data is connected; see [docs/source-capabilities.md](docs/source-capabilities.md).
+> **Status: D0 — interactive demonstration.** The sample catalog (brands, stores, prices, history, alerts) is fictional and labelled "Sample data". Optionally, 15 real products get live Google Shopping prices via SerpApi, labelled "Live price"; see [docs/source-capabilities.md](docs/source-capabilities.md).
 
 ## What works
 - Search covers a demo catalog of headphones, monitors and small appliances. It supports exact model/GTIN lookup, full-text and trigram search, filters, and stable pagination.
@@ -51,6 +51,7 @@ See [docs/deploy.md](docs/deploy.md): one Linux server, `docker compose -f infra
 | `pnpm db:reset:local --yes` | **Destructive** local reset; refuses live mode and non-local hosts |
 | `pnpm doctor` | Dependency and configuration checks (no secrets printed) |
 | `pnpm source:probe <id>` | Bounded read-only source check |
+| `pnpm live:sweep --status` / `--max N` | Live SerpApi prices: usage (no calls) / sweep up to N due products (1 credit each) |
 | `pnpm admin:grant <email>` | Grant admin (audited) |
 | `pnpm bench`, `pnpm match:benchmark` | Measured API latency; labelled matching benchmark |
 

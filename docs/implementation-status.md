@@ -1,22 +1,22 @@
 # Implementation status
 
-**Operating level: D0 — interactive demonstration with sample data.** No live or sandbox source is connected or approved (see `docs/source-capabilities.md`).
+**Operating level: D0 — interactive demonstration.** Sample data, optionally mixed with live Google Shopping prices for 15 curated products via SerpApi (`LIVE_PROVIDERS_ENABLED=true`; see `docs/source-capabilities.md`).
 
-Last verified: 2026-11-04 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Compose with Postgres 17, Redis 7.4, Mailpit 1.21, SeaweedFS 3.80.
+Last verified: 2026-11-05 on Linux (WSL), Node 24.22.2, pnpm 10.28.1, Docker Compose with Postgres 17, Redis 7.4, Mailpit 1.21, SeaweedFS 3.80.
 
 ## Verification commands and observed results
 
 | Command | Result |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | ok |
-| `pnpm db:migrate` | 3 migrations applied (init, constraints, generations) |
+| `pnpm db:migrate` | 4 migrations applied (init, constraints, generations, live_sweep) |
 | `pnpm seed:demo` | 15 products, 31 variants, 101 listings, 2,148 observations over 21 days (first run ~54 s; reruns add one fresh check) |
 | `pnpm doctor` | all required checks pass; worker heartbeat alive while the worker runs |
 | `pnpm typecheck` | 0 errors (all packages + scripts) |
 | `pnpm lint` | 0 errors, 0 warnings |
 | `pnpm build` | ok (Next.js 16.4.5 production build) |
-| `pnpm test:unit` | 6 files, 72 tests passed |
-| `pnpm test:integration` | 4 files, 92 tests passed (real Postgres `buytrail_test`, real Redis DB 5 for the worker test) |
+| `pnpm test:unit` | 7 files, 89 tests passed |
+| `pnpm test:integration` | 5 files, 98 tests passed (real Postgres `buytrail_test`, real Redis DB 5 for the worker test; SerpApi stubbed, no credits) |
 | `pnpm test:e2e` (web + worker running) | 9 passed (7 desktop Chromium, 2 Pixel 7 mobile) |
 | `pnpm match:benchmark` | 373 cases, 0 false merges, 0 missed |
 | `pnpm bench` (300 s @ 20 rps) | p95 13.8 ms overall, 0 errors, on the small demo dataset (see benchmarks.md) |

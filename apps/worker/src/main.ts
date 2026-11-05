@@ -14,7 +14,8 @@ export function buildServices(): Services {
     clock,
     mailer: createMailer(config),
     storage: createS3Store(config),
-    // Only demo providers exist; no live source is approved (docs/source-capabilities.md).
+    // Demo providers serve the sample catalog. The live SerpApi source is search-based and
+    // refreshed by the worker's sweep loop, so it is not registered for per-listing lookups.
     providers: config.APP_MODE === "live" ? new Map() : demoProviders(clock, db),
     log: jsonLogger("worker"),
   };
@@ -27,6 +28,8 @@ async function main() {
     redisUrl: s.config.REDIS_URL,
     // Demo feed emulation: refresh every demo listing every 10 minutes.
     demoRefreshMs: s.config.APP_MODE === "demo" ? 10 * 60_000 : null,
+    // Live sweep check every 30 minutes (each sweeps at most one due variant).
+    liveSweepMs: s.config.LIVE_PROVIDERS_ENABLED ? 30 * 60_000 : null,
   });
   const shutdown = async (sig: string) => {
     s.log.info("shutdown requested", { signal: sig });

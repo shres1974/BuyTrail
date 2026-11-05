@@ -3,7 +3,7 @@ import { listWatches, readiness } from "@buytrail/services";
 import { relativeAge } from "@buytrail/domain";
 import { pageActor } from "@/server/guard";
 import { services } from "@/server/services";
-import { Card, Notice, PageTitle, SampleBadge, Badge } from "@/components/ui";
+import { Card, LiveBadge, Notice, PageTitle, SampleBadge, Badge } from "@/components/ui";
 import { WatchActions } from "@/components/WatchActions";
 
 export const metadata = { title: "Watchlist" };
@@ -40,7 +40,7 @@ export default async function Watchlist() {
                       </Link>
                     </h2>
                     <div className="mt-1 flex flex-wrap gap-2 text-xs">
-                      {w.isDemo && <SampleBadge />}
+                      {w.isDemo ? <SampleBadge /> : <LiveBadge />}
                       <Badge>{w.condition}</Badge>
                       <Badge tone={w.status === "Meets target" ? "good" : w.status === "Paused" ? "neutral" : w.status.startsWith("Unable") ? "bad" : w.status.startsWith("No eligible") ? "warn" : "teal"}>{w.status}</Badge>
                       <Badge>{w.channels.includes("email") ? "In-app + email" : "In-app only"}</Badge>

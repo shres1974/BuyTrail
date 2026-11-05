@@ -88,6 +88,8 @@ export async function syncRefreshSchedules(db: Db, now: Date, opts: { watchedSec
   const contexts = await db.quoteContext.findMany({ where: { ownerUserId: null }, select: { id: true } });
   let n = 0;
   for (const l of listings) {
+    // Search-based sources (no per-listing lookup) are refreshed by variant sweeps instead.
+    if ((l.source.capabilities as { lookup?: boolean }).lookup === false) continue;
     const minSec = (l.source.capabilities as { minimumRefreshSeconds?: number }).minimumRefreshSeconds ?? 60;
     for (const c of contexts) {
       const isWatched = l.variantId !== null && watched.has(`${l.variantId}|${c.id}`);
