@@ -85,6 +85,13 @@ describe("title rules", () => {
     expect(titleMatches("Sony Wh-1000xm5 Over-Ear Headphones + Jbl T110 In Ear", xm5.rules)).toBe(false);
     expect(titleMatches("Sony WH-1000XM5 Headphones (Black) | Pro Stand Bundle", xm5.rules)).toBe(false);
     expect(titleMatches("Sony WH-1000XM5 w/ charger", xm5.rules)).toBe(false);
+    const keurig = LIVE_VARIANT_BY_ID.get("var_live_keurig_k_mini_black")!.rules;
+    expect(titleMatches("Keurig K-Mini Single Serve Coffee Maker - Black", keurig)).toBe(true);
+    expect(titleMatches("Keurig K-Mini Go Single Serve K-Cup Pod Coffee Maker", keurig)).toBe(false);
+    expect(titleMatches("Keurig K-Mini Mate Single Serve Coffee Maker", keurig)).toBe(false);
+    const buds = LIVE_VARIANT_BY_ID.get("var_live_samsung_buds3_pro_silver")!.rules;
+    expect(titleMatches("Écouteurs Samsung Galaxy Buds3 Pro (Blanc)", buds)).toBe(false);
+    expect(titleMatches("Nespresso Vertuo Next Deluxe by Breville", LIVE_VARIANT_BY_ID.get("var_live_nespresso_vertuo_next_black")!.rules)).toBe(false);
   });
   it("monitor variants don't absorb sibling models", () => {
     const asus = LIVE_VARIANT_BY_ID.get("var_live_asus_vg27aq")!.rules;
@@ -154,6 +161,11 @@ describe("attribution to the tracked variant", () => {
     expect(b.implausible).toBe(1);
     expect(b.listings.some((l) => l.sellerName === "developmentwebsite.ca")).toBe(false);
     expect(b.listings).toHaveLength(7);
+  });
+  it("applies the product's price floor and treats graded items as used", () => {
+    const parsed = parseShoppingResponse({ shopping_results: [{ position: 1, title: "Sony WH-1000XM5 Black | Made in China", source: "cheapdeals", price: "$68.50", extracted_price: 68.5 }] }, xm5.query);
+    expect(attributeOffers(xm5, parsed.offers, clock.now())).toMatchObject({ listings: [], implausible: 1 });
+    expect(parseCondition("Apple AirPods Pro 2 USB-C, Grade A", [])).toBe("used");
   });
 });
 

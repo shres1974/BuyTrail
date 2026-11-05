@@ -29,6 +29,8 @@ export type TrackedVariant = {
   /** Google Shopping query (one SerpApi credit per refresh). */
   query: string;
   rules: TitleRules;
+  /** New-condition prices below this (minor units, CAD) are implausible for the product; half applies to used/refurbished. */
+  priceFloorMinor: number;
 };
 
 const hp = (colour: string, extra: Record<string, string> = {}) => ({ market: "CA", model_generation: "1", colour, connectivity: "Bluetooth", bundle: "Standard", ...extra });
@@ -49,7 +51,8 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     label: "Black",
     attributes: hp("Black", { model_generation: "5", form_factor: "Over-ear" }),
     query: "Sony WH-1000XM5 headphones black",
-    rules: { any: ["wh-1000xm5*", "wh1000xm5*"], none: ["xm4", "xm6", "silver", "midnight blue", "smoky pink", "blue", "pink", "white"] },
+    rules: { any: ["wh-1000xm5*", "wh1000xm5*"], none: ["xm4", "xm6", "silver", "midnight blue", "smoky pink", "blue", "pink", "white", "argent", "blanc", "bleu", "rose", "wh1000xm5 s", "wh 1000xm5 s"] },
+    priceFloorMinor: 15000,
   },
   {
     productId: "prod_live_sony_wf1000xm5",
@@ -63,7 +66,8 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     label: "Black",
     attributes: hp("Black", { model_generation: "5", form_factor: "In-ear" }),
     query: "Sony WF-1000XM5 earbuds black",
-    rules: { any: ["wf-1000xm5*", "wf1000xm5*"], none: ["xm4", "xm6", "silver", "platinum", "pink", "white"] },
+    rules: { any: ["wf-1000xm5*", "wf1000xm5*"], none: ["xm4", "xm6", "silver", "platinum", "pink", "white", "argent", "blanc", "rose", "wf1000xm5 s", "wf 1000xm5 s"] },
+    priceFloorMinor: 12000,
   },
   {
     productId: "prod_live_apple_airpods_pro2",
@@ -78,6 +82,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: hp("White", { model_generation: "2", form_factor: "In-ear" }),
     query: "Apple AirPods Pro 2 USB-C",
     rules: { any: ["airpods pro 2", "airpods pro 2nd", "mtjv3*"], all: [["usb c", "usbc", "mtjv3*"]], none: ["lightning", "airpods pro 3", "3rd gen", "airpods pro 1st"] },
+    priceFloorMinor: 12000,
   },
   {
     productId: "prod_live_bose_qc_ultra",
@@ -92,6 +97,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: hp("Black", { form_factor: "Over-ear" }),
     query: "Bose QuietComfort Ultra Headphones black",
     rules: { any: ["quietcomfort ultra headphones", "qc ultra headphones"], none: ["earbuds", "2nd gen", "2nd generation", "white smoke", "sandstone", "lunar blue", "driftwood", "white", "blue"] },
+    priceFloorMinor: 20000,
   },
   {
     productId: "prod_live_samsung_buds3_pro",
@@ -105,7 +111,8 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     label: "Silver",
     attributes: hp("Silver", { model_generation: "3", form_factor: "In-ear" }),
     query: "Samsung Galaxy Buds3 Pro silver",
-    rules: { any: ["buds3 pro", "buds 3 pro", "sm-r630*"], none: ["white", "buds3 fe", "buds 3 fe"] },
+    rules: { any: ["buds3 pro", "buds 3 pro", "sm-r630*"], none: ["white", "blanc", "buds3 fe", "buds 3 fe"] },
+    priceFloorMinor: 10000,
   },
   // ── Monitors ────────────────────────────────────────────────────────────────
   {
@@ -121,6 +128,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: mon("27", "2560x1440", "100", "IPS"),
     query: "Dell S2725DS monitor",
     rules: { any: ["s2725ds"] },
+    priceFloorMinor: 15000,
   },
   {
     productId: "prod_live_dell_u2723qe",
@@ -135,6 +143,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: mon("27", "3840x2160", "60", "IPS Black"),
     query: "Dell UltraSharp U2723QE monitor",
     rules: { any: ["u2723qe"] },
+    priceFloorMinor: 35000,
   },
   {
     productId: "prod_live_lg_27gp850",
@@ -149,6 +158,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: mon("27", "2560x1440", "165", "Nano IPS"),
     query: "LG 27GP850-B monitor",
     rules: { any: ["27gp850-b", "27gp850 b", "27gp850"], none: ["27gp850p"] },
+    priceFloorMinor: 20000,
   },
   {
     productId: "prod_live_asus_vg27aq",
@@ -163,6 +173,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: mon("27", "2560x1440", "165", "IPS"),
     query: "ASUS TUF Gaming VG27AQ monitor",
     rules: { any: ["vg27aq"], none: ["vg27aq1a", "vg27aql", "vg27aql1a", "vg27aq3a", "vg27aqml1a", "vg27aqm"] },
+    priceFloorMinor: 15000,
   },
   {
     productId: "prod_live_samsung_odyssey_g5_27",
@@ -177,6 +188,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: mon("27", "2560x1440", "165", "VA"),
     query: "Samsung Odyssey G5 LS27CG510 monitor",
     rules: { any: ["ls27cg510*", "s27cg510*", "s27cg51*"] },
+    priceFloorMinor: 15000,
   },
   // ── Small appliances ────────────────────────────────────────────────────────
   {
@@ -192,6 +204,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: app("3.8 L", "Black", "Air fryer"),
     query: "Ninja AF101C air fryer",
     rules: { any: ["af101*"] },
+    priceFloorMinor: 5000,
   },
   {
     productId: "prod_live_instant_pot_duo_6qt",
@@ -210,6 +223,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
       all: [["6 qt", "6qt", "6 quart", "6-quart", "5.7 l", "5.7l", "5.7 litre", "5.7 liter", "ip-duo60*"]],
       none: ["duo plus", "duo crisp", "duo nova", "duo evo", "duo gourmet", "3 qt", "3qt", "3 quart", "8 qt", "8qt", "8 quart", "mini"],
     },
+    priceFloorMinor: 5000,
   },
   {
     productId: "prod_live_ninja_bl610",
@@ -224,6 +238,7 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     attributes: app("72 oz", "Black", "Blender"),
     query: "Ninja Professional Blender BL610",
     rules: { any: ["bl610*"] },
+    priceFloorMinor: 5000,
   },
   {
     productId: "prod_live_nespresso_vertuo_next",
@@ -239,8 +254,9 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     query: "Nespresso Vertuo Next coffee machine black",
     rules: {
       any: ["vertuo next"],
-      none: ["aeroccino", "with milk", "frother", "vertuo pop", "vertuo plus", "vertuo lattissima", "vertuo creatista", "white", "grey", "gray", "red", "cherry", "chrome", "light grey", "dark grey", "capsule pack", "pods"],
+      none: ["aeroccino", "with milk", "frother", "vertuo pop", "vertuo plus", "deluxe", "vertuo lattissima", "vertuo creatista", "white", "grey", "gray", "red", "cherry", "chrome", "light grey", "dark grey", "capsule pack", "pods"],
     },
+    priceFloorMinor: 7000,
   },
   {
     productId: "prod_live_keurig_k_mini",
@@ -256,8 +272,9 @@ export const LIVE_VARIANTS: TrackedVariant[] = [
     query: "Keurig K-Mini coffee maker black",
     rules: {
       any: ["k-mini", "k mini"],
-      none: ["k-mini plus", "k mini plus", "k-mini basic", "white", "red", "grey", "gray", "blue", "pink", "studio gray", "poppy red"],
+      none: ["k-mini plus", "k mini plus", "k-mini basic", "k-mini go", "k mini go", "k-mini mate", "k mini mate", "white", "red", "grey", "gray", "blue", "pink", "studio gray", "poppy red"],
     },
+    priceFloorMinor: 4000,
   },
 ];
 

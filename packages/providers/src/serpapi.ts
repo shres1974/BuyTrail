@@ -110,7 +110,7 @@ export function parseDelivery(texts: string[], currency: "CAD" | "USD"): Normali
 export function parseCondition(title: string, hints: string[]): NormalizedListing["condition"] {
   const t = ` ${normalizeText([title, ...hints].join(" "))} `;
   if (/ (refurbished|renewed|recertified|reconditioned) /.test(t)) return "refurbished";
-  if (/ (used|pre owned|preowned|open box|second hand|secondhand) /.test(t)) return "used";
+  if (/ (used|pre owned|preowned|open box|second hand|secondhand|grade [a-d]|grade) /.test(t)) return "used";
   return "new";
 }
 
@@ -238,7 +238,7 @@ export function titleMatches(rawTitle: string, rules: TitleRules): boolean {
 
 // ── Attribution to a tracked variant (pure) ──────────────────────────────────────────────
 
-export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number; implausible: number };
+export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number; implausible: number; rejectedTitles: string[] };
 
 /** Prices below this fraction of the median matched price are treated as implausible (scam/mislisted). */
 export const IMPLAUSIBLE_PRICE_FRACTION_BPS = 4000n;
@@ -263,7 +263,11 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
   for (const cur of ["CAD", "USD"] as const) medians.set(cur, medianMinor(titled.filter((o) => o.currency === cur).map((o) => o.priceMinor)));
   for (const o of titled) {
     const med = medians.get(o.currency) ?? null;
-    if (titled.filter((x) => x.currency === o.currency).length >= 3 && med !== null && o.priceMinor * 10000n < med * IMPLAUSIBLE_PRICE_FRACTION_BPS) {
+    // Product-specific floor (CAD): below it a "new" listing is a scam/mislisting; half for used.
+    const floor = BigInt(tracked.priceFloorMinor) / (o.condition === "new" ? 1n : 2n);
+    const belowFloor = o.currency === "CAD" && o.priceMinor < floor;
+    const belowMedian = titled.filter((x) => x.currency === o.currency).length >= 3 && med !== null && o.priceMinor * 10000n < med * IMPLAUSIBLE_PRICE_FRACTION_BPS;
+    if (belowFloor || belowMedian) {
       implausible++;
       continue;
     }
@@ -305,7 +309,7 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
       categoryHint: tracked.category,
     }),
   );
-  return { listings, matched, rejected: offers.length - matched, implausible };
+  return { listings, matched, rejected: offers.length - matched, implausible, rejectedTitles: offers.filter((o) => !titled.includes(o)).slice(0, 15).map((o) => o.title.slice(0, 100)) };
 }
 
 // ── HTTP connector ───────────────────────────────────────────────────────────────────────

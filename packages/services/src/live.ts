@@ -73,7 +73,7 @@ export async function liveSearchesUsed(db: Db, now: Date, days = ROLLING_WINDOW_
 }
 
 export type SweepOutcome =
-  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number; implausible: number }
+  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number; implausible: number; rejectedTitles?: string[] }
   | { variantId: string; kind: "failed"; code: string }
   | { variantId: string; kind: "skipped"; reason: "monthly_budget_exhausted" | "daily_budget_exhausted" | "rate_limited" | "circuit_open" | "disabled" };
 
@@ -121,7 +121,7 @@ export async function sweepLiveVariant(
   config: AppConfig,
   provider: SerpApiShoppingProvider,
   tracked: TrackedVariant,
-  opts: { ignoreDailyCap?: boolean } = {},
+  opts: { ignoreDailyCap?: boolean; debug?: boolean } = {},
 ): Promise<SweepOutcome> {
   const now = clock.now();
   const variantId = tracked.variantId;
@@ -145,7 +145,7 @@ export async function sweepLiveVariant(
       where: { variantId },
       data: { lastSuccessAt: done, nextDueAt: new Date(done.getTime() + config.SERPAPI_REFRESH_HOURS * 3600_000), lastResult: result, lastErrorCode: null },
     });
-    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible };
+    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, ...(opts.debug ? { rejectedTitles: s.rejectedTitles } : {}) };
   } catch (e) {
     const pe = e instanceof ProviderError ? e : new ProviderError("invalid_response", "Unexpected sweep failure");
     const at = clock.now();
@@ -162,7 +162,7 @@ export async function sweepDueLiveVariants(
   clock: Clock,
   config: AppConfig,
   provider: SerpApiShoppingProvider,
-  opts: { max?: number; ignoreDailyCap?: boolean; all?: boolean; log?: Logger } = {},
+  opts: { max?: number; ignoreDailyCap?: boolean; debug?: boolean; all?: boolean; log?: Logger } = {},
 ): Promise<SweepOutcome[]> {
   const now = clock.now();
   const due = await db.liveSweep.findMany({

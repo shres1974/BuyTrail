@@ -7,6 +7,7 @@
  *  --all         include variants that aren't due yet
  *  --bootstrap   allow exceeding today's daily cap (still counted; the 30-day cap still applies)
  *  --variant ID  sweep exactly one tracked variant
+ *  --debug       include up to 15 rejected result titles per variant (to tune title rules)
  * Never prints the API key or full provider payloads.
  */
 import "./_env";
@@ -34,7 +35,7 @@ async function main() {
   const provider = liveProvider(config, systemClock)!;
   const max = Math.min(20, Math.max(1, Number(val("--max") ?? 1) || 1));
   const variant = val("--variant");
-  const opts = { ignoreDailyCap: arg("--bootstrap") };
+  const opts = { ignoreDailyCap: arg("--bootstrap"), debug: arg("--debug") };
   const results = variant
     ? [await sweepLiveVariant(db, systemClock, config, provider, LIVE_VARIANT_BY_ID.get(variant) ?? (() => { throw new Error(`Unknown tracked variant ${variant}`); })(), opts)]
     : await sweepDueLiveVariants(db, systemClock, config, provider, { ...opts, max, all: arg("--all") });
