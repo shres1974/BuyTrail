@@ -63,6 +63,18 @@ export async function seedLiveCatalog(db: Db, config: AppConfig, now: Date): Pro
       await tx.productVariant.upsert({ where: { id: v.variantId }, create: { id: v.variantId, productId: v.productId, ...variant }, update: variant });
       await tx.liveSweep.upsert({ where: { variantId: v.variantId }, create: { variantId: v.variantId, sourceId: SERPAPI_SOURCE_ID, nextDueAt: now }, update: {} });
     }
+    // Products dropped from the curated list: remove them unless someone watches or bought them.
+    const tracked = LIVE_VARIANTS.map((v) => v.variantId);
+    const dropped = await tx.productVariant.findMany({ where: { isDemo: false, id: { startsWith: "var_live_", notIn: tracked } }, select: { id: true, productId: true } });
+    for (const d of dropped) {
+      await tx.liveSweep.deleteMany({ where: { variantId: d.id } });
+      const inUse = (await tx.watch.count({ where: { variantId: d.id } })) + (await tx.purchaseItem.count({ where: { variantId: d.id } })) + (await tx.sourceListing.count({ where: { variantId: d.id } }));
+      if (inUse > 0) continue;
+      await tx.productIdentifier.deleteMany({ where: { variantId: d.id } });
+      await tx.variantEvalGeneration.deleteMany({ where: { variantId: d.id } });
+      await tx.productVariant.delete({ where: { id: d.id } });
+      if ((await tx.productVariant.count({ where: { productId: d.productId } })) === 0) await tx.product.delete({ where: { id: d.productId } });
+    }
   });
   return { products: LIVE_VARIANTS.length };
 }

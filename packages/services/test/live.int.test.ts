@@ -35,6 +35,14 @@ describe("live catalog seeding", () => {
     expect(await k.db.product.count({ where: { isDemo: false } })).toBe(LIVE_VARIANTS.length);
     expect(await k.db.liveSweep.count()).toBe(LIVE_VARIANTS.length);
   });
+  it("removes a product dropped from the curated list when nothing references it", async () => {
+    await k.db.product.create({ data: { id: "prod_live_old", title: "Old", brand: "X", category: "monitors", family: "Old", isDemo: false } });
+    await k.db.productVariant.create({ data: { id: "var_live_old", productId: "prod_live_old", modelCode: "OLD1", modelCodeNormalized: "OLD1", label: "Old", attributes: {}, isDemo: false } });
+    await k.db.liveSweep.create({ data: { variantId: "var_live_old", sourceId: SERPAPI_SOURCE_ID, nextDueAt: k.clock.now() } });
+    await seedLiveCatalog(k.db, k.config, k.clock.now());
+    expect(await k.db.product.findUnique({ where: { id: "prod_live_old" } })).toBeNull();
+    expect(await k.db.liveSweep.count()).toBe(LIVE_VARIANTS.length);
+  });
 });
 
 describe("sweep → comparison", () => {
