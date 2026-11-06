@@ -443,13 +443,15 @@ export async function searchCatalog(db: DbOrTx, params: SearchParams, now: Date,
   //    Lowest total: applies only after relevance filtering; products without eligible totals last.
   // Sort keys are string tuples compared lexicographically (ascending = better first).
   const BIG = 10n ** 15n;
+  // Real (live-price) products are listed before fictional sample products.
+  const live = (r: Row) => (r.product.isDemo ? "1" : "0");
   const keyOf = (r: Row): string[] => {
     if (sort === "lowest_total") {
-      return [r.bestTotal === null ? "1" : "0", (r.bestTotal ?? BIG).toString().padStart(16, "0"), r.product.id];
+      return [live(r), r.bestTotal === null ? "1" : "0", (r.bestTotal ?? BIG).toString().padStart(16, "0"), r.product.id];
     }
-    // Relevance: exact match → higher score → has eligible comparison → stable id.
-    const inv = String(Math.round((1000 - (r.exact ? 500 : 0) - Math.min(r.score, 499)) * 1000)).padStart(10, "0");
-    return [inv, r.eligibleCount > 0 ? "0" : "1", r.product.id];
+    // Relevance: exact model/GTIN match → live before sample → higher score → has eligible comparison → stable id.
+    const inv = String(Math.round((1000 - Math.min(r.score, 499)) * 1000)).padStart(10, "0");
+    return [r.exact ? "0" : "1", live(r), inv, r.eligibleCount > 0 ? "0" : "1", r.product.id];
   };
   const cmpKey = (a: string[], b: string[]) => {
     for (let i = 0; i < Math.max(a.length, b.length); i++) {

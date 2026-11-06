@@ -5,7 +5,7 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import { LIVE_VARIANT_BY_ID, LIVE_VARIANTS, SERPAPI_SOURCE_ID, SerpApiShoppingProvider } from "@buytrail/providers";
-import { createWatch, liveSearchesUsed, PUBLIC_CONTEXT_ID, seedLiveCatalog, sweepDueLiveVariants, sweepLiveVariant, syncRefreshSchedules, variantHistory, variantOffers } from "../src";
+import { createWatch, liveSearchesUsed, searchCatalog, PUBLIC_CONTEXT_ID, seedLiveCatalog, sweepDueLiveVariants, sweepLiveVariant, syncRefreshSchedules, variantHistory, variantOffers } from "../src";
 import { FIXTURE } from "../../providers/test/serpapi-fixture";
 import { drainOutbox, makeUser, seeded, type Kit } from "./kit";
 
@@ -68,6 +68,18 @@ describe("sweep → comparison", () => {
     await syncRefreshSchedules(k.db, k.clock.now(), { watchedSeconds: 900, idleSeconds: 3600 });
     const liveIds = (await k.db.sourceListing.findMany({ where: { sourceId: SERPAPI_SOURCE_ID }, select: { id: true } })).map((l) => l.id);
     expect(await k.db.refreshSchedule.count({ where: { listingId: { in: liveIds } } })).toBe(0);
+  });
+});
+
+describe("search ordering", () => {
+  it("lists live products before sample products, but an exact sample model match still comes first", async () => {
+    const isDemo = async (q: string, sort?: "lowest_total") => (await searchCatalog(k.db, { q, limit: 100, ...(sort ? { sort } : {}) }, k.clock.now(), "s")).items.map((i) => i.isDemo);
+    for (const flags of [await isDemo(""), await isDemo("monitor"), await isDemo("", "lowest_total")]) {
+      expect(flags.includes(false) && flags.includes(true)).toBe(true);
+      expect(flags.indexOf(true)).toBeGreaterThan(flags.lastIndexOf(false));
+    }
+    const exact = await searchCatalog(k.db, { q: "CP27Q" }, k.clock.now(), "s");
+    expect(exact.items[0]!.isDemo).toBe(true);
   });
 });
 
