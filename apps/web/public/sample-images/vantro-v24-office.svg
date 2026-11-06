@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Vantro V24 Office monitor (illustration)">
+<rect width="400" height="400" rx="28" fill="#e7ecf2"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<rect x="188" y="220.0" width="24" height="48" fill="#2b3a5c"/><rect x="140" y="268.0" width="120" height="14" rx="7" fill="#2b3a5c"/><rect x="90.0" y="90.0" width="220" height="130" rx="10" fill="#14213d"/><rect x="100.0" y="100.0" width="200" height="104" rx="4" fill="#4f6d8f"/><path d="M120.0 180.0 l40 -30 30 18 40 -40 40 30" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="6" stroke-linejoin="round"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>

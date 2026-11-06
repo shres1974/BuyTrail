@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Hearthwell Brew Kettle (illustration)">
+<rect width="400" height="400" rx="28" fill="#eef1f4"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<rect x="120" y="300" width="170" height="22" rx="10" fill="#14213d"/>
+<path d="M135 300 L150 140 L265 140 L280 300 Z" fill="#b9c0c9"/><rect x="145" y="125" width="125" height="22" rx="10" fill="#14213d"/>
+<path d="M280 165 C330 170 330 270 282 280" fill="none" stroke="#14213d" stroke-width="18" stroke-linecap="round"/>
+<path d="M150 170 L108 150 L112 165 L146 190 Z" fill="#b9c0c9"/><rect x="198" y="175" width="10" height="100" rx="5" fill="#3d8fa8"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>

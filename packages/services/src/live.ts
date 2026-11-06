@@ -24,6 +24,8 @@ import { acceptObservation, bumpVariantGeneration, claimRefresh, upsertListingFr
 import { PUBLIC_CONTEXT_ID } from "./catalog";
 import { recordSourceFailure, recordSourceSuccess, reserveSourceRequest } from "./sources";
 import type { Logger } from "./context";
+import { storeLiveProductImage } from "./images";
+import type { ObjectStore } from "./storage";
 
 export const LIVE_SOURCE_NAME = "Google Shopping via SerpApi (live prices)";
 export const SWEEP_TIMEOUT_MS = 30_000;
@@ -73,7 +75,7 @@ export async function liveSearchesUsed(db: Db, now: Date, days = ROLLING_WINDOW_
 }
 
 export type SweepOutcome =
-  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number; implausible: number; rejectedTitles?: string[] }
+  | { variantId: string; kind: "swept"; listings: number; applied: number; matched: number; rejected: number; implausible: number; image: boolean; rejectedTitles?: string[] }
   | { variantId: string; kind: "failed"; code: string }
   | { variantId: string; kind: "skipped"; reason: "monthly_budget_exhausted" | "daily_budget_exhausted" | "rate_limited" | "circuit_open" | "disabled" };
 
@@ -121,7 +123,7 @@ export async function sweepLiveVariant(
   config: AppConfig,
   provider: SerpApiShoppingProvider,
   tracked: TrackedVariant,
-  opts: { ignoreDailyCap?: boolean; debug?: boolean } = {},
+  opts: { ignoreDailyCap?: boolean; debug?: boolean; storage?: ObjectStore; imageFetch?: typeof fetch } = {},
 ): Promise<SweepOutcome> {
   const now = clock.now();
   const variantId = tracked.variantId;
@@ -138,14 +140,16 @@ export async function sweepLiveVariant(
   try {
     const s = await withTimeout(SWEEP_TIMEOUT_MS, (signal) => provider.sweep(tracked, signal));
     const applied = await ingestSweep(db, clock, variantId, s.listings);
+    // Picture: image CDNs aren't SerpApi searches, so this costs no credits. Failure is harmless.
+    const image = opts.storage && s.thumbnailUrl ? await storeLiveProductImage(db, opts.storage, clock, tracked.productId, s.thumbnailUrl, opts.imageFetch) : false;
     const done = clock.now();
     await recordSourceSuccess(db, SERPAPI_SOURCE_ID, done);
-    const result = { listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, skipped: s.skipped, total: s.total };
+    const result = { listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, skipped: s.skipped, total: s.total, image };
     await db.liveSweep.update({
       where: { variantId },
       data: { lastSuccessAt: done, nextDueAt: new Date(done.getTime() + config.SERPAPI_REFRESH_HOURS * 3600_000), lastResult: result, lastErrorCode: null },
     });
-    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, ...(opts.debug ? { rejectedTitles: s.rejectedTitles } : {}) };
+    return { variantId, kind: "swept", listings: s.listings.length, applied, matched: s.matched, rejected: s.rejected, implausible: s.implausible, image, ...(opts.debug ? { rejectedTitles: s.rejectedTitles } : {}) };
   } catch (e) {
     const pe = e instanceof ProviderError ? e : new ProviderError("invalid_response", "Unexpected sweep failure");
     const at = clock.now();
@@ -162,7 +166,7 @@ export async function sweepDueLiveVariants(
   clock: Clock,
   config: AppConfig,
   provider: SerpApiShoppingProvider,
-  opts: { max?: number; ignoreDailyCap?: boolean; debug?: boolean; all?: boolean; log?: Logger } = {},
+  opts: { max?: number; ignoreDailyCap?: boolean; debug?: boolean; all?: boolean; log?: Logger; storage?: ObjectStore; imageFetch?: typeof fetch } = {},
 ): Promise<SweepOutcome[]> {
   const now = clock.now();
   const due = await db.liveSweep.findMany({

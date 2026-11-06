@@ -127,7 +127,7 @@ export async function startWorker(s: Services, opts: WorkerOptions): Promise<Wor
   const live = liveProvider(s.config, s.clock);
   if (live && opts.liveSweepMs) {
     // One due variant per check, spreading searches out; budgets are enforced before each call.
-    every(opts.liveSweepMs, "live-sweep", () => sweepDueLiveVariants(s.db, s.clock, s.config, live, { max: 1, log: s.log }));
+    every(opts.liveSweepMs, "live-sweep", () => sweepDueLiveVariants(s.db, s.clock, s.config, live, { max: 1, log: s.log, storage: s.storage }));
   }
 
   s.log.info("worker started", { workerId, mode: s.config.APP_MODE });

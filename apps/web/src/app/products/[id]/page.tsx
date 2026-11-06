@@ -170,12 +170,25 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <nav aria-label="Breadcrumb" className="text-sm text-muted">
         <Link href="/search" className="underline">Search</Link> / <Link href={`/search?category=${product.category}`} className="underline">{product.categoryLabel}</Link>
       </nav>
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.title}</h1>
-          {product.isDemo ? <SampleBadge /> : <LiveBadge />}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        {product.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.imageUrl}
+            alt={product.isDemo ? `Illustration of ${product.title} (sample product)` : `Product photo of ${product.title}`}
+            width={160}
+            height={160}
+            className="h-40 w-40 shrink-0 rounded-lg border border-line bg-white object-contain"
+          />
+        )}
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.title}</h1>
+            {product.isDemo ? <SampleBadge /> : <LiveBadge />}
+          </div>
+          {product.description && <p className="mt-1 max-w-3xl text-muted">{product.description}</p>}
+          {product.imageUrl && !product.isDemo && <p className="mt-1 text-xs text-muted">Photo from a Google Shopping listing for this product.</p>}
         </div>
-        {product.description && <p className="mt-1 max-w-3xl text-muted">{product.description}</p>}
       </header>
 
       <Card>

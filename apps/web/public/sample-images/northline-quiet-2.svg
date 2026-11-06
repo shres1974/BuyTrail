@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Northline Quiet 2 headphones (illustration)">
+<rect width="400" height="400" rx="28" fill="#efe7da"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<path d="M110 220 C110 120 290 120 290 220" fill="none" stroke="#1f2a44" stroke-width="22" stroke-linecap="round"/>
+<rect x="82" y="200" width="70" height="110" rx="32" fill="#1f2a44"/><rect x="248" y="200" width="70" height="110" rx="32" fill="#1f2a44"/>
+<rect x="98" y="218" width="38" height="74" rx="18" fill="#c9b28a"/><rect x="264" y="218" width="38" height="74" rx="18" fill="#c9b28a"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>

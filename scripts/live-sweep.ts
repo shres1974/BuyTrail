@@ -15,7 +15,7 @@ import { loadConfig } from "@buytrail/config";
 import { getPrisma } from "@buytrail/db";
 import { systemClock } from "@buytrail/domain";
 import { LIVE_VARIANT_BY_ID } from "@buytrail/providers";
-import { liveProvider, liveSweepStatus, seedLiveCatalog, sweepDueLiveVariants, sweepLiveVariant } from "@buytrail/services";
+import { createS3Store, liveProvider, liveSweepStatus, seedLiveCatalog, sweepDueLiveVariants, sweepLiveVariant } from "@buytrail/services";
 
 const arg = (name: string) => process.argv.includes(name);
 const val = (name: string) => {
@@ -35,7 +35,9 @@ async function main() {
   const provider = liveProvider(config, systemClock)!;
   const max = Math.min(20, Math.max(1, Number(val("--max") ?? 1) || 1));
   const variant = val("--variant");
-  const opts = { ignoreDailyCap: arg("--bootstrap"), debug: arg("--debug") };
+  const storage = createS3Store(config);
+  await storage.ensureBucket();
+  const opts = { ignoreDailyCap: arg("--bootstrap"), debug: arg("--debug"), storage };
   const results = variant
     ? [await sweepLiveVariant(db, systemClock, config, provider, LIVE_VARIANT_BY_ID.get(variant) ?? (() => { throw new Error(`Unknown tracked variant ${variant}`); })(), opts)]
     : await sweepDueLiveVariants(db, systemClock, config, provider, { ...opts, max, all: arg("--all") });

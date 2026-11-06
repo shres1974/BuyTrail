@@ -29,6 +29,7 @@ import {
 } from "@buytrail/domain";
 import { parseCapabilities } from "./sources";
 import { AppError, notFound } from "./errors";
+import { productImagePath } from "./images";
 
 export const PUBLIC_CONTEXT_ID = "ctx_demo_ca_standard";
 
@@ -205,6 +206,7 @@ export async function productDetail(db: DbOrTx, productId: string) {
     categoryLabel: cat?.label ?? p.category,
     description: p.description,
     isDemo: p.isDemo,
+    imageUrl: productImagePath(p),
     attributeDefs: cat?.attributes ?? [],
     variants: p.variants.map((v) => ({
       id: v.id,
@@ -490,7 +492,7 @@ export async function searchCatalog(db: DbOrTx, params: SearchParams, now: Date,
         category: r.product.category,
         modelCodes: [...new Set(r.matchingVariants.map((v) => v.modelCode))],
         distinguishing,
-        imageUrl: null as string | null,
+        imageUrl: productImagePath(r.product),
         eligibleOfferCount: r.eligibleCount,
         incompleteTotalCount: r.incompleteCount,
         bestKnownTotal: r.bestTotal === null ? null : dto(money(r.bestTotal)),

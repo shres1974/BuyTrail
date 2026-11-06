@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Clearpeak CP27Q monitor (illustration)">
+<rect width="400" height="400" rx="28" fill="#e4eef1"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<rect x="188" y="230.0" width="24" height="48" fill="#2b3a5c"/><rect x="140" y="278.0" width="120" height="14" rx="7" fill="#2b3a5c"/><rect x="75.0" y="80.0" width="250" height="150" rx="10" fill="#14213d"/><rect x="85.0" y="90.0" width="230" height="124" rx="4" fill="#3d8fa8"/><path d="M105.0 190.0 l40 -30 30 18 40 -40 40 30" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="6" stroke-linejoin="round"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>

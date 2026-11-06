@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Fernway Studio One headphones (illustration)">
+<rect width="400" height="400" rx="28" fill="#f4e4dc"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<path d="M105 225 C105 110 295 110 295 225" fill="none" stroke="#2d2d2d" stroke-width="26" stroke-linecap="round"/>
+<rect x="72" y="198" width="82" height="118" rx="20" fill="#2d2d2d"/><rect x="246" y="198" width="82" height="118" rx="20" fill="#2d2d2d"/>
+<rect x="88" y="214" width="50" height="86" rx="12" fill="#b5482f"/><rect x="262" y="214" width="50" height="86" rx="12" fill="#b5482f"/>
+<path d="M113 316 C113 345 160 350 170 335" fill="none" stroke="#2d2d2d" stroke-width="6"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>

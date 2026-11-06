@@ -20,7 +20,7 @@ Unknown permission means the capability stays disabled (Section 9.1). Operating 
 | Refresh | Worker checks every 30 min and sweeps at most one due variant. No per-listing lookups (`lookup: false`), and watches, alerts and pre-send revalidation use stored quotes only. |
 | Freshness | Refresh interval + 24 h. Older prices move to "Not recently confirmed" and stop counting for alerts. |
 | History | Allowed (owner decision); retention 180 days. |
-| Images | Not displayed (`imageDisplayAllowed: false`). |
+| Images | One representative thumbnail per product, self-hosted (see "Product pictures" below). |
 | Outbound links | Seller link from the result when present, else the Google Shopping product page (`https` only). |
 | Failure handling | 401/invalid key → `invalid_credentials` (sweeps stop); 429/out of searches → `quota_exhausted` (24 h back-off); 5xx/network → retry after 6 h. A failure never changes stored prices. |
 | Known blind spots | Stock, fees and shipping are as reported by Google Shopping, not checkout quotes. Seller names come from Google Shopping. Sellers that don't appear in a given search keep their last price until it goes stale. |
@@ -78,3 +78,8 @@ Checked on 2026-11-04 by the implementing agent with read-only fetches of the pu
 5. Save sanitized fixtures only if retention is allowed, and keep them out of the public repo.
 6. Verify currency, variant identifiers, condition, stock, URLs and freshness, then run the contract tests and failure simulations.
 7. Enable only the capabilities that were verified (`source.capabilities`, `historyRetentionDays`).
+
+### Product pictures
+
+- **Sample products:** original illustrations created for this project (`apps/web/public/sample-images`), labelled "Sample illustration". The brands are fictional, so no real photos exist.
+- **Live products:** the Google Shopping thumbnail from a listing that passed the product's title and price checks. The owner approved displaying these on 2026-11-05 for the non-commercial demonstration. The server fetches only from `serpapi.com` / `encrypted-tbn*.gstatic.com` over https (no redirects, 2 MiB limit), re-encodes to a 400×400 WebP (stripping metadata), stores it privately and serves it from BuyTrail's origin, so visitors never contact third-party image hosts. Refreshed with each sweep; no extra SerpApi searches.

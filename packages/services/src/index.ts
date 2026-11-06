@@ -16,6 +16,7 @@ export * from "./account";
 export * from "./jobs";
 export * from "./demo";
 export * from "./live";
+export * from "./images";
 export * from "./samples";
 export * from "./admin";
 export * from "./health";

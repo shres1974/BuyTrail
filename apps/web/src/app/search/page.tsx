@@ -134,9 +134,14 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           {result?.items.map((it) => (
             <li key={it.productId}>
               <Card className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-paper text-xs text-muted">
-                  No image
-                </div>
+                {it.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={it.imageUrl} alt="" width={64} height={64} loading="lazy" className="h-16 w-16 shrink-0 rounded-lg border border-line bg-white object-contain" />
+                ) : (
+                  <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-paper text-xs text-muted">
+                    No image
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <h2 className="font-semibold">
                     <Link href={`/products/${it.productId}${it.variantId ? `?variant=${it.variantId}` : ""}`} className="hover:text-teal hover:underline">

@@ -49,6 +49,8 @@ export type ShoppingOffer = {
   stock: NormalizedListing["stock"];
   outboundUrl: string;
   productId: string | null;
+  /** Product thumbnail (https on serpapi.com / gstatic.com only); never displayed directly. */
+  thumbnailUrl: string | null;
 };
 
 export type ParsedResponse = { offers: ShoppingOffer[]; skipped: number; total: number };
@@ -142,6 +144,19 @@ function safeOutbound(link: string | null, productLink: string | null, query: st
   return `https://www.google.ca/search?tbm=shop&q=${encodeURIComponent(query)}`;
 }
 
+/** Only fetchable from SerpApi's or Google's image CDNs over https. */
+export const THUMBNAIL_HOSTS = [/^serpapi\.com$/, /^encrypted-tbn\d\.gstatic\.com$/];
+export function safeThumbnail(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(decode(raw));
+    if (u.protocol !== "https:" || u.username || u.password || u.port || u.toString().length > 2048) return null;
+    return THUMBNAIL_HOSTS.some((h) => h.test(u.hostname)) ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Parse a SerpApi google_shopping response. Unparseable results are counted and skipped. */
 export function parseShoppingResponse(json: unknown, query: string): ParsedResponse {
   const root = (json ?? {}) as Record<string, unknown>;
@@ -187,6 +202,7 @@ export function parseShoppingResponse(json: unknown, query: string): ParsedRespo
         stock: outOfStock ? "out_of_stock" : "in_stock",
         outboundUrl: safeOutbound(str(r.link), str(r.product_link), query),
         productId: str(r.product_id),
+        thumbnailUrl: safeThumbnail(str(r.serpapi_thumbnail) ?? str(r.thumbnail)),
       });
     }
   }
@@ -238,7 +254,7 @@ export function titleMatches(rawTitle: string, rules: TitleRules): boolean {
 
 // ── Attribution to a tracked variant (pure) ──────────────────────────────────────────────
 
-export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number; implausible: number; rejectedTitles: string[] };
+export type Attribution = { listings: NormalizedListing[]; matched: number; rejected: number; implausible: number; rejectedTitles: string[]; thumbnailUrl: string | null };
 
 /** Prices below this fraction of the median matched price are treated as implausible (scam/mislisted). */
 export const IMPLAUSIBLE_PRICE_FRACTION_BPS = 4000n;
@@ -259,6 +275,7 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
   const best = new Map<string, ShoppingOffer>();
   const titled = offers.filter((o) => titleMatches(o.title, tracked.rules));
   let implausible = 0;
+  const accepted: ShoppingOffer[] = [];
   const medians = new Map<string, bigint | null>();
   for (const cur of ["CAD", "USD"] as const) medians.set(cur, medianMinor(titled.filter((o) => o.currency === cur).map((o) => o.priceMinor)));
   for (const o of titled) {
@@ -271,6 +288,7 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
       implausible++;
       continue;
     }
+    accepted.push(o);
     const key = `${o.sellerSlug}|${o.condition}`;
     const prev = best.get(key);
     if (!prev || o.priceMinor < prev.priceMinor || (o.priceMinor === prev.priceMinor && o.position < prev.position)) best.set(key, o);
@@ -309,7 +327,10 @@ export function attributeOffers(tracked: TrackedVariant, offers: ShoppingOffer[]
       categoryHint: tracked.category,
     }),
   );
-  return { listings, matched, rejected: offers.length - matched, implausible, rejectedTitles: offers.filter((o) => !titled.includes(o)).slice(0, 15).map((o) => o.title.slice(0, 100)) };
+  // Representative picture: earliest-positioned accepted (title + plausible price) offer with a
+  // thumbnail, preferring new condition.
+  const pic = accepted.filter((o) => o.thumbnailUrl).sort((a, b) => (a.condition === "new" ? 0 : 1) - (b.condition === "new" ? 0 : 1) || a.position - b.position)[0];
+  return { listings, thumbnailUrl: pic?.thumbnailUrl ?? null, matched, rejected: offers.length - matched, implausible, rejectedTitles: offers.filter((o) => !titled.includes(o)).slice(0, 15).map((o) => o.title.slice(0, 100)) };
 }
 
 // ── HTTP connector ───────────────────────────────────────────────────────────────────────

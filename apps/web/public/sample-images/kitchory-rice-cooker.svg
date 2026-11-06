@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Kitchory rice cooker (illustration)">
+<rect width="400" height="400" rx="28" fill="#e9eef3"/>
+<ellipse cx="200" cy="338" rx="120" ry="14" fill="#14213d" opacity="0.08"/>
+<ellipse cx="200" cy="170" rx="115" ry="38" fill="#d9dde3"/><rect x="85" y="168" width="230" height="140" rx="50" fill="#f8f8f6"/>
+<rect x="180" y="130" width="40" height="18" rx="8" fill="#14213d"/><rect x="165" y="225" width="70" height="40" rx="10" fill="#14213d"/><circle cx="185" cy="245" r="6" fill="#f4a261"/><circle cx="215" cy="245" r="6" fill="#ffffff" opacity="0.7"/>
+<text x="200" y="384" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#14213d" opacity="0.45">Sample illustration</text>
+</svg>
